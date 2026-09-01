@@ -1,0 +1,53 @@
+# Ahmedabad pilot configuration.
+# Every city-specific value lives here so the pipeline is portable (NFR-5):
+# swap this file, rerun, and the whole system targets a different city.
+
+city:
+  name: Ahmedabad
+  state: Gujarat
+  centre: {lat: 23.03, lon: 72.58}
+  # Bounding box covering AMC plus immediate periphery.
+  # Urban core only (~270 km2), not the full AMC + periphery (~666 km2).
+  # Overpass cost scales with area and the periphery adds query time
+  # without adding demo value: the wards that matter are all in here.
+  bbox: {min_lat: 22.95, max_lat: 23.10, min_lon: 72.50, max_lon: 72.66}
+  timezone_offset_hours: 5.5      # IST, UTC+5:30
+  elevation_m: 53
+
+hindcast:
+  # The May 2010 heatwave: the event that killed ~1,344 people and led directly
+  # to India's first Heat Action Plan. Verify figures before quoting on stage.
+  start_date: "2010-05-15"
+  end_date: "2010-05-25"
+  focus_date: "2010-05-21"
+  # Peak WBGT is at 14:00, not 15:00: by 15:00 GHI has already fallen
+  # 924 -> 704 W/m2 on the peak day, dropping WBGT 33.4 -> 32.4.
+  focus_hour_ist: 14              # the kill-gate hour
+
+grid:
+  h3_resolution: 8                # ~0.46 km^2 per cell, ~0.7 km edge
+
+urban_heat:
+  # PROTOTYPE PATH: urban form from OpenStreetMap, not satellite LST.
+  #   dTa_hex = uhi_amplitude_c * (intensity_hex - mean_intensity)
+  # The spatial *pattern* is measured from real urban form. The *amplitude* is a
+  # literature value, not a local fit -- say this out loud on stage. Indian
+  # cities report canopy-layer (air) UHI of roughly 2-5 degC; 3.0 is deliberately
+  # conservative. Surface UHI is far larger; do not conflate the two.
+  uhi_amplitude_c: 3.0
+  uhi_amplitude_range: [2.0, 5.0]   # for the sensitivity sweep
+  include_buildings: false          # heaviest Overpass query; roads proxy it well
+
+  # V1 PATH, retained for when Earth Engine access lands:
+  #   dTa = alpha * (LST_hex - LST_city_mean)
+  alpha: 0.40
+  alpha_range: [0.30, 0.50]
+  lst_composite:
+    years: [2023, 2024, 2025]
+    months: [4, 5]                # pre-monsoon, clearest skies
+    max_cloud_cover_pct: 10
+
+kill_gate:
+  # Day-1 decision thresholds on intra-city WBGT spread at the focus hour.
+  proceed_spread_c: 3.0
+  pivot_spread_c: 1.5

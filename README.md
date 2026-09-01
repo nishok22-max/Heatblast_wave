@@ -118,4 +118,3 @@ CAP output is stamped `status=Exercise`, never `Actual`.
   `physiology.py` uses ISO 7243 + ACGIH work/rest tables instead, which is a
   lookup rather than a solver and is what occupational hygienists actually use.
 - `thermofeel` (ECMWF) works and supplies Liljegren WBGT and the UTCI polynomial.
-"# Heatblast_wave" 

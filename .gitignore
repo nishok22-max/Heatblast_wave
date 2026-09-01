@@ -1,0 +1,36 @@
+# --- virtualenv: 589 MB, never commit ---
+.venv/
+venv/
+env/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- development placeholders, never demo these ---
+data/processed/urban_form_PLACEHOLDER.json
+
+# NOTE ON data/raw/ AND data/processed/ -- DELIBERATELY NOT IGNORED.
+#
+# data/raw/ holds cached Open-Meteo and Overpass responses (~18 MB). Committing
+# them is a deliberate choice:
+#
+#   * a fresh clone can run the whole pipeline in ~7 s, fully offline
+#   * teammates do not each spend 30-60 min re-hammering a rate-limited public
+#     Overpass instance for data that does not change
+#   * the demo requirement is that it works with the network off; shipping the
+#     cache is what makes that true from a clean checkout
+#
+# If the repo later grows past a few hundred MB, revisit: move the cache to a
+# release asset or Git LFS rather than silently dropping it, because losing it
+# means losing offline reproducibility.

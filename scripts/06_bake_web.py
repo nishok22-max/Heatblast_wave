@@ -1,0 +1,275 @@
+"""Bake the processed cube into the static assets the demo reads.
+
+    python scripts/06_bake_web.py config/ahmedabad.yaml
+
+This is the handoff to the frontend, and the last step that touches Python. After
+this the demo is a folder of files: no server, no database, no network. Open
+``web/index.html`` from file:// with the wifi off and it works (NFR-1).
+
+SIZE BUDGET drives the shape of the output. The full cube is 392 cells x 264
+hours x 5 metrics -- about half a million numbers, which is far too much JSON for
+a static page. So the split is:
+
+    hexes.geojson   full spatial detail, static per-cell properties
+    hourly.json     full spatial detail, but ONLY the focus day (24 h)
+    city.json       full temporal detail (all 264 h), but city aggregates only
+    personas.json   persona definitions and the safe-work-window analysis
+    meta.json       provenance, kill-gate numbers, and every declared caveat
+
+That gives the map its 24-hour scrubber and the timeline its 11-day night-recovery
+chart, without shipping the cross product of both.
+"""
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+import numpy as np
+import yaml
+
+from heatstress import advisory as ad
+from heatstress import physiology as ph
+from heatstress import risk as rk
+from heatstress import spatial as sp
+from heatstress import thermal as th
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / "web" / "data"
+
+PERSONA_ORDER = ["construction", "delivery", "child", "elderly"]
+
+
+def r1(values):
+    """Round to 1 decimal and return plain floats -- halves the JSON size."""
+    return [round(float(v), 1) for v in values]
+
+
+def main(config_path: str) -> None:
+    config = yaml.safe_load(Path(config_path).read_text(encoding="utf-8"))
+    city, hind, uhi, gate = (config["city"], config["hindcast"],
+                             config["urban_heat"], config["kill_gate"])
+    slug = city["name"].lower().replace(" ", "_")
+    OUT.mkdir(parents=True, exist_ok=True)
+
+    cube = np.load(ROOT / "data" / "processed" / f"indices_{slug}.npz",
+                   allow_pickle=False)
+    cells = [str(c) for c in cube["cells"]]
+    stamps = [str(t) for t in cube["timestamps_ist"]]
+    form = json.loads(
+        (ROOT / "data" / "processed" / f"urban_form_{slug}.json").read_text(
+            encoding="utf-8"))
+
+    focus_day = hind["focus_date"]
+    day_idx = [i for i, t in enumerate(stamps) if t.startswith(focus_day)]
+    focus_idx = next(i for i in day_idx
+                     if t_hour(stamps[i]) == hind["focus_hour_ist"])
+    print(f"{city['name']}: {len(cells)} cells, {len(stamps)} hours; "
+          f"focus day has {len(day_idx)} hours")
+
+    wbgt, utci = cube["wbgt"], cube["utci"]
+    air, hidx, risk = cube["air_temp"], cube["heat_index"], cube["risk"]
+
+    # ---- 1. hexes.geojson : static per-cell properties -------------------
+    peak_hour = [int(t_hour(stamps[day_idx[int(np.argmax(wbgt[day_idx, j]))]]))
+                 for j in range(len(cells))]
+    props = {}
+    for j, cell in enumerate(cells):
+        raw = form["cells"].get(cell, {})
+        props[cell] = {
+            "d_ta_c": round(float(cube["d_ta"][j]), 2),
+            "intensity": round(float(cube["intensity"][j]), 3),
+            "roads": round(float(raw.get("roads", 0.0)), 3),
+            "green": round(float(raw.get("green", 0.0)), 3),
+            "water": round(float(raw.get("water", 0.0)), 3),
+            "exposure": round(float(cube["exposure"][j]), 3),
+            "vulnerability": round(float(cube["vulnerability"][j]), 3),
+            "peak_hour": peak_hour[j],
+            "wbgt_focus": round(float(wbgt[focus_idx, j]), 1),
+            "utci_focus": round(float(utci[focus_idx, j]), 1),
+            "risk_focus": round(float(risk[focus_idx, j]), 3),
+        }
+    geojson = sp.grid_geojson(cells, props)
+    write(OUT / "hexes.geojson", geojson)
+
+    # ---- 2. hourly.json : focus-day spatial detail ------------------------
+    hourly = {
+        "meta": {
+            "city": city["name"], "date": focus_day,
+            "hours_ist": [t_hour(stamps[i]) for i in day_idx],
+            "uhi_amplitude_c": uhi["uhi_amplitude_c"],
+        },
+        "hexes": {
+            cell: {
+                "air_temp": r1(air[day_idx, j]),
+                "wbgt": r1(wbgt[day_idx, j]),
+                "utci": r1(utci[day_idx, j]),
+                "heat_index": r1(hidx[day_idx, j]),
+                "risk": [round(float(v), 3) for v in risk[day_idx, j]],
+            }
+            for j, cell in enumerate(cells)
+        },
+    }
+    write(OUT / "hourly.json", hourly)
+
+    # ---- 3. city.json : full 11-day temporal detail -----------------------
+    # Carries the night-recovery story (finding F6), which needs every hour of
+    # the event, not just the peak day.
+    city_mean = {name: cube[name].mean(axis=1) for name in
+                 ("air_temp", "wbgt", "utci", "heat_index")}
+    nights = night_recovery(stamps, city_mean["air_temp"])
+    write(OUT / "city.json", {
+        "city": city["name"],
+        "timestamps_ist": stamps,
+        "air_temp": r1(city_mean["air_temp"]),
+        "wbgt": r1(city_mean["wbgt"]),
+        "utci": r1(city_mean["utci"]),
+        "heat_index": r1(city_mean["heat_index"]),
+        "night_recovery": nights,
+    })
+
+    # ---- 4. personas.json : the safe-work-window analysis -----------------
+    persona_out = {}
+    for key in PERSONA_ORDER:
+        persona = ph.PERSONAS[key]
+        series = wbgt[day_idx].mean(axis=1)
+        minutes = [float(ph.safe_work_minutes_per_hour(w, persona)) for w in series]
+        persona_out[key] = {
+            "label": persona.label,
+            "notes": persona.notes,
+            "metabolic": persona.metabolic.name,
+            "limit_c": round(persona.limit_c(), 1),
+            "vulnerability_offset_c": persona.vulnerability_offset_c,
+            "basis": ph.assess(float(series[0]), persona)["basis"],
+            "safe_minutes_by_hour": minutes,
+            "total_safe_hours": round(sum(minutes) / 60.0, 1),
+            "full_capacity_hours": [h for h, m in
+                                    zip(hourly["meta"]["hours_ist"], minutes)
+                                    if m >= 60],
+            "assessment_at_focus": ph.assess(float(series[focus_idx - day_idx[0]]),
+                                             persona),
+        }
+    write(OUT / "personas.json", {"date": focus_day, "personas": persona_out,
+                                  "order": PERSONA_ORDER})
+
+    # ---- 5. advisory + CAP for the worst cell -----------------------------
+    worst = int(np.argmax(utci[focus_idx]))
+    worst_cell = cells[worst]
+    advisory = ad.build_advisory(
+        worst_cell, city["name"], f"{focus_day}T{hind['focus_hour_ist']:02d}:00:00+05:30",
+        float(utci[focus_idx, worst]), float(wbgt[focus_idx, worst]),
+        ph.safe_work_minutes_per_hour(float(wbgt[focus_idx, worst]),
+                                      ph.PERSONAS["construction"]),
+    )
+    write(OUT / "advisory.json", {
+        "zone_id": advisory.zone_id, "headline": advisory.headline,
+        "severity": advisory.severity, "colour": advisory.colour,
+        "utci_c": advisory.utci_c, "wbgt_c": advisory.wbgt_c,
+        "safe_work_note": advisory.safe_work_note,
+        "text": advisory.text,
+        "languages_verified": ad.LANGUAGES_VERIFIED,
+        "cap_xml": ad.cap_alert(advisory,
+                                polygon=sp.cell_polygon(worst_cell)),
+    })
+
+    # ---- 6. meta.json : provenance and every declared caveat --------------
+    row = wbgt[focus_idx]
+    urow = utci[focus_idx]
+    write(OUT / "meta.json", {
+        "city": city["name"], "centre": city["centre"], "bbox": city["bbox"],
+        "h3_resolution": config["grid"]["h3_resolution"],
+        "n_cells": len(cells),
+        "focus": {"date": focus_day, "hour_ist": hind["focus_hour_ist"]},
+        "event": ("May 2010 Ahmedabad heatwave -- the event that preceded India's "
+                  "first Heat Action Plan. Casualty figures should be verified "
+                  "against primary sources before being quoted."),
+        "kill_gate": {
+            "air_temp_spread_c": round(float(np.ptp(air[focus_idx])), 2),
+            "wbgt_spread_c": round(float(np.ptp(row)), 2),
+            "utci_spread_c": round(float(np.ptp(urow)), 2),
+            "wbgt_damping_ratio": round(float(np.ptp(row) / np.ptp(air[focus_idx])), 2),
+            "utci_amplification": round(float(np.ptp(urow) / np.ptp(air[focus_idx])), 2),
+            "verdict": ("PROCEED" if max(np.ptp(row), np.ptp(urow))
+                        >= gate["proceed_spread_c"] else "MARGINAL"),
+        },
+        "provenance": [
+            {"layer": "weather", "source": "Open-Meteo ERA5 archive",
+             "resolution": "~31 km, hourly", "status": "measured"},
+            {"layer": "urban form", "source": "OpenStreetMap via Overpass",
+             "resolution": f"H3 res {config['grid']['h3_resolution']} (~0.74 km2)",
+             "status": "measured"},
+            {"layer": "UHI amplitude", "source": "literature value",
+             "resolution": f"{uhi['uhi_amplitude_c']} degC city-wide",
+             "status": "ASSUMED -- not fitted locally"},
+            {"layer": "thermal indices", "source": "thermofeel (ECMWF); "
+             "WBGT by Liljegren, UTCI polynomial", "resolution": "per cell-hour",
+             "status": "measured"},
+            {"layer": "physiology", "source": "ISO 7243 limits + ACGIH work-rest",
+             "resolution": "per persona", "status": "published standards"},
+            {"layer": "vulnerability", "source": "PLACEHOLDER",
+             "resolution": "city-wide constant",
+             "status": "NOT FITTED -- exposure proxied by urban intensity"},
+            {"layer": "health risk", "source": "literature-shaped exposure-response",
+             "resolution": "relative risk only",
+             "status": "NOT CALIBRATED to local health records"},
+        ],
+        "caveats": [
+            "UHI amplitude is assumed, not measured: the spatial pattern is real "
+            "but the magnitude is a literature value. See the sensitivity sweep.",
+            "Vulnerability is a declared placeholder and does not vary between "
+            "neighbourhoods, so risk variation is driven almost entirely by hazard.",
+            "Exposure-response coefficients are not fitted to local health data.",
+            "Hindi and Gujarati advisory copy is machine-composed and unverified.",
+            "WBGT damps intra-city variation (x0.46) while UTCI amplifies it "
+            "(x1.29): for a dry heatwave, UTCI is the appropriate map layer.",
+        ],
+        "is_placeholder_urban": bool(cube["is_placeholder_urban"]),
+        "exposure_response": {
+            "metric": rk.DEFAULT_WBGT_RESPONSE.metric,
+            "mmt_c": rk.DEFAULT_WBGT_RESPONSE.mmt,
+            "beta": rk.DEFAULT_WBGT_RESPONSE.beta,
+            "beta_ci": [rk.DEFAULT_WBGT_RESPONSE.beta_low,
+                        rk.DEFAULT_WBGT_RESPONSE.beta_high],
+            "is_calibrated": rk.DEFAULT_WBGT_RESPONSE.is_calibrated,
+            "source": rk.DEFAULT_WBGT_RESPONSE.source,
+        },
+    })
+
+    total = sum(p.stat().st_size for p in OUT.glob("*"))
+    print(f"\n  baked -> {OUT.relative_to(ROOT)}  ({total / 1024:.0f} KB total)")
+    for path in sorted(OUT.glob("*")):
+        print(f"    {path.name:20s} {path.stat().st_size / 1024:8.1f} KB")
+
+
+def t_hour(stamp: str) -> int:
+    return int(stamp[11:13])
+
+
+def night_recovery(stamps, air_temp):
+    """Per-night minimum temperature between 22:00 and 06:00 IST.
+
+    The core of finding F6: across the 2010 event the overnight minimum never
+    fell below 26.7 degC and reached 30.7 degC, meaning no physiological recovery
+    for six consecutive nights. This is what a daytime-maximum warning misses.
+    """
+    from collections import defaultdict
+    buckets = defaultdict(list)
+    for stamp, value in zip(stamps, air_temp):
+        hour = t_hour(stamp)
+        if hour >= 22:
+            # Attribute late-evening hours to the night that is beginning.
+            buckets[stamp[:10]].append(float(value))
+        elif hour <= 6:
+            buckets[stamp[:10]].append(float(value))
+    return [{"date": date, "min_c": round(min(values), 1),
+             "max_c": round(max(values), 1)}
+            for date, values in sorted(buckets.items()) if len(values) >= 6]
+
+
+def write(path: Path, payload) -> None:
+    path.write_text(json.dumps(payload, separators=(",", ":"),
+                               ensure_ascii=False), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1] if len(sys.argv) > 1 else "config/ahmedabad.yaml")
