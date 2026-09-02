@@ -76,6 +76,106 @@ Shipping the cross product would be ~500k numbers.
 
 ---
 
+## Zone names
+
+H3 identifies a cell as `8842cc6821fffff`, which nobody can act on or discuss.
+`scripts/03_place_names.py` fetches OpenStreetMap's named place nodes for the
+city and labels each zone with its nearest one:
+
+```powershell
+.\.venv\Scripts\python.exe scripts_place_names.py confighmedabad.yaml
+```
+
+Ahmedabad resolves to **75 distinct names** across 392 zones (Bodakdev,
+Navrangpura, Maninagar, Asarwa...). The UI leads with the name and keeps the H3
+code as small secondary text, and a "Find a neighbourhood" dropdown lets someone
+jump straight to their own area.
+
+**These are labels, not boundaries.** A zone called "Maninagar" is the zone
+nearest the point OSM calls Maninagar — it is not the Maninagar ward. 247 of 392
+zones sit within 1.2 km of their place; the rest are shown as "Zone near X" so
+the looser matches are not overstated.
+
+One Overpass query for the whole city, rather than reverse-geocoding 392
+centroids one at a time — lighter, faster, and far more polite to OSM's servers.
+
+---
+
+## Live forecast mode
+
+Alongside the May 2010 hindcast, the demo carries a **live forecast** for the
+same city — current conditions plus about five days ahead.
+
+```powershell
+.\.venv\Scripts\python.exe scripts\07_live.py config\ahmedabad.yaml
+cd frontend; npm run build
+```
+
+The frontend shows both as tabs. It exists to close two gaps: the problem
+statement asks for a 3-5 day outlook, and a hindcast invites the obvious
+question *"so it only works on the past?"*.
+
+**Why it was cheap to add:** the pipeline is date-agnostic. Open-Meteo's
+forecast endpoint returns the same variables, units and response shape as the
+archive endpoint, so `fetch_forecast()` is a near-copy of `fetch_hourly()` and
+every downstream stage — solar geometry, Liljegren WBGT, UTCI, personas, risk —
+runs unchanged.
+
+**Live does not mean more accurate.** The per-neighbourhood downscaling still
+rests on the assumed urban-heat amplitude. Live input changes how *current* the
+numbers are, not how *validated*. Every provenance flag stays exactly as it was.
+
+**Keeping it fresh.** `.github/workflows/refresh-live.yml` re-runs the pipeline
+every six hours, commits the refreshed JSON and redeploys the page. The physics
+runs in Python, so a browser cannot recompute indices on its own — republishing
+the baked JSON is the honest way to keep it current without porting thermofeel
+to TypeScript.
+
+The demo stays offline-capable either way: the data is compiled into the page,
+so opening `index.html` from a USB stick shows the last published forecast with
+its retrieval time on screen, never a blank map.
+
+---
+
+## Frontend
+
+React + TypeScript + Vite, in `frontend/`.
+
+```powershell
+cd C:\Users\HP\sih-heat\frontend
+npm install
+npm run dev      # development, http://localhost:5173
+npm run build    # production -> frontend/dist/index.html
+```
+
+The production build is **a single self-contained `index.html`** (~1.1 MB) with
+the CSS, JS and all six data files inlined. Open it directly from disk, email it,
+or put it on a USB stick — no server, no network, nothing to install.
+
+**Two things follow from that, and they are deliberate:**
+
+1. **Re-baking the data requires a frontend rebuild.** The data is compiled in,
+   not fetched. Run `06_bake_web.py`, then `npm run build`.
+2. **Why inline rather than fetch:** Chromium treats a page opened from `file://`
+   as an opaque origin and blocks `fetch()`, module-script loading and web
+   workers. A conventional build renders blank from disk — which is exactly the
+   scenario the offline requirement exists to cover. Inlining removes the whole
+   class of failure.
+
+There is **no basemap**, for the same reason: every map style fetches tiles from
+a server. The hex grid covers the study area on its own, and cells with green or
+water cover are outlined so parks and the Sabarmati stay recognisable. The map is
+hand-rolled SVG rather than MapLibre — MapLibre v6 needs a web worker, which
+cannot be constructed from `file://`.
+
+**The colour scale has two modes, and the legend always says which is active.**
+*Absolute* is a fixed domain across all 24 hours, so colours are comparable as
+you scrub. *Contrast* rescales to the values present at the visible hour, which
+is the only way the intra-city pattern is visible at the peak of the event.
+Neither is dishonest; showing one without saying which would be.
+
+---
+
 ## Targeting a different city
 
 The pipeline is city-agnostic. Copy `config/ahmedabad.yaml`, change the bbox,

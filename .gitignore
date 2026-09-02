@@ -34,3 +34,7 @@ data/processed/urban_form_PLACEHOLDER.json
 # If the repo later grows past a few hundred MB, revisit: move the cache to a
 # release asset or Git LFS rather than silently dropping it, because losing it
 # means losing offline reproducibility.
+
+# --- frontend ---
+frontend/node_modules/
+frontend/dist/

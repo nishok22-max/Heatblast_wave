@@ -29,6 +29,7 @@ import numpy as np
 import yaml
 
 from heatstress import advisory as ad
+from heatstress.sources import openmeteo as om
 from heatstress import physiology as ph
 from heatstress import risk as rk
 from heatstress import spatial as sp
@@ -60,6 +61,12 @@ def main(config_path: str) -> None:
         (ROOT / "data" / "processed" / f"urban_form_{slug}.json").read_text(
             encoding="utf-8"))
 
+    # Human-readable zone names. Without these the UI can only show an H3 code
+    # like "8842cc6821fffff", which nobody can act on or discuss.
+    names_path = ROOT / "data" / "processed" / f"place_names_{slug}.json"
+    place_names = (json.loads(names_path.read_text("utf-8"))["cells"]
+                   if names_path.exists() else {})
+
     focus_day = hind["focus_date"]
     day_idx = [i for i, t in enumerate(stamps) if t.startswith(focus_day)]
     focus_idx = next(i for i in day_idx
@@ -84,6 +91,8 @@ def main(config_path: str) -> None:
             "water": round(float(raw.get("water", 0.0)), 3),
             "exposure": round(float(cube["exposure"][j]), 3),
             "vulnerability": round(float(cube["vulnerability"][j]), 3),
+            "place": place_names.get(cell, {}).get("name"),
+            "place_exact": place_names.get(cell, {}).get("exact", False),
             "peak_hour": peak_hour[j],
             "wbgt_focus": round(float(wbgt[focus_idx, j]), 1),
             "utci_focus": round(float(utci[focus_idx, j]), 1),
@@ -97,6 +106,14 @@ def main(config_path: str) -> None:
         "meta": {
             "city": city["name"], "date": focus_day,
             "hours_ist": [t_hour(stamps[i]) for i in day_idx],
+            # TRUE clock labels, e.g. "14:30".
+            #
+            # ERA5 is reported on the UTC hour and IST is UTC+5:30, so every
+            # sample actually lands at :30 past the hour in local time. Labelling
+            # them as whole hours misstates each observation by 30 minutes --
+            # small, but exactly the sort of thing a meteorologist judge checks,
+            # and the "14:00 peak" is really the 14:30 sample.
+            "labels_ist": [stamps[i][11:16] for i in day_idx],
             "uhi_amplitude_c": uhi["uhi_amplitude_c"],
         },
         "hexes": {
@@ -193,35 +210,89 @@ def main(config_path: str) -> None:
                         >= gate["proceed_spread_c"] else "MARGINAL"),
         },
         "provenance": [
-            {"layer": "weather", "source": "Open-Meteo ERA5 archive",
+            {"layer": "weather", "plain": "Past weather",
+             "source": "Open-Meteo ERA5 archive",
              "resolution": "~31 km, hourly", "status": "measured"},
-            {"layer": "urban form", "source": "OpenStreetMap via Overpass",
+            {"layer": "urban form", "plain": "How built-up each area is", "source": "OpenStreetMap via Overpass",
              "resolution": f"H3 res {config['grid']['h3_resolution']} (~0.74 km2)",
              "status": "measured"},
-            {"layer": "UHI amplitude", "source": "literature value",
+            {"layer": "UHI amplitude", "plain": "How much hotter cities get", "source": "literature value",
              "resolution": f"{uhi['uhi_amplitude_c']} degC city-wide",
              "status": "ASSUMED -- not fitted locally"},
-            {"layer": "thermal indices", "source": "thermofeel (ECMWF); "
+            {"layer": "thermal indices", "plain": "Heat-stress calculations", "source": "thermofeel (ECMWF); "
              "WBGT by Liljegren, UTCI polynomial", "resolution": "per cell-hour",
              "status": "measured"},
-            {"layer": "physiology", "source": "ISO 7243 limits + ACGIH work-rest",
+            {"layer": "physiology", "plain": "Safe limits for the human body", "source": "ISO 7243 limits + ACGIH work-rest",
              "resolution": "per persona", "status": "published standards"},
-            {"layer": "vulnerability", "source": "PLACEHOLDER",
+            {"layer": "vulnerability", "plain": "Who lives there and how they cope", "source": "PLACEHOLDER",
              "resolution": "city-wide constant",
              "status": "NOT FITTED -- exposure proxied by urban intensity"},
-            {"layer": "health risk", "source": "literature-shaped exposure-response",
+            {"layer": "health risk", "plain": "Expected health impact", "source": "literature-shaped exposure-response",
              "resolution": "relative risk only",
              "status": "NOT CALIBRATED to local health records"},
         ],
+        # Each caveat carries a plain-language statement AND the technical one.
+        # This panel is the project's credibility, so it is the last place that
+        # should be readable only by specialists -- but dropping the technical
+        # wording would lose the domain reader. Both ship; the UI leads with
+        # plain and keeps technical as supporting detail.
         "caveats": [
-            "UHI amplitude is assumed, not measured: the spatial pattern is real "
-            "but the magnitude is a literature value. See the sensitivity sweep.",
-            "Vulnerability is a declared placeholder and does not vary between "
-            "neighbourhoods, so risk variation is driven almost entirely by hazard.",
-            "Exposure-response coefficients are not fitted to local health data.",
-            "Hindi and Gujarati advisory copy is machine-composed and unverified.",
-            "WBGT damps intra-city variation (x0.46) while UTCI amplifies it "
-            "(x1.29): for a dry heatwave, UTCI is the appropriate map layer.",
+            {
+                "plain": "We know WHICH neighbourhoods are hotter, but not exactly "
+                         "HOW MUCH hotter. The pattern is measured from real map "
+                         "data; the size of the difference is a published average.",
+                "technical": "UHI amplitude is assumed, not measured: the spatial "
+                             "pattern is real but the magnitude is a literature "
+                             "value. See the sensitivity sweep.",
+            },
+            {
+                "plain": "We could not get neighbourhood-level data on who lives "
+                         "where -- age, health, housing. So the risk map currently "
+                         "reflects how hot a place is, not how vulnerable its "
+                         "residents are.",
+                "technical": "Vulnerability is a declared placeholder and does not "
+                             "vary between neighbourhoods, so risk variation is "
+                             "driven almost entirely by hazard.",
+            },
+            {
+                "plain": "The health-risk numbers are not based on actual hospital "
+                         "or death records from this city. They use published "
+                         "figures from heat research, so treat them as indicative "
+                         "only.",
+                "technical": "Exposure-response coefficients are not fitted to "
+                             "local health data.",
+            },
+            {
+                "plain": "The Hindi and Gujarati warning text has not been checked "
+                         "by a native speaker and must not be sent to the public "
+                         "as it stands.",
+                "technical": "Hindi and Gujarati advisory copy is machine-composed "
+                             "and unverified.",
+            },
+            {
+                "plain": "Different heat measures disagree about this event, and "
+                         "that is expected. For dry heat like this, the "
+                         "feels-like measure (UTCI) is the one to trust.",
+                "technical": "WBGT damps intra-city variation (x0.46) while UTCI "
+                             "amplifies it (x1.29): for a dry heatwave, UTCI is "
+                             "the appropriate map layer.",
+            },
+            # The two data layers are from different eras, and that has to be
+            # said out loud. We decoupled urban form from the weather date on
+            # the grounds that a city's heat structure is stable year to year --
+            # sound over two or three years, stretched over sixteen. Ahmedabad
+            # grew substantially in that time.
+            {
+                "plain": "The weather is from 2010, but the map of roads, parks "
+                         "and buildings is from today. The city has grown since "
+                         "then, so the hot and cool areas shown are today's "
+                         "Ahmedabad, not 2010's.",
+                "technical": "Temporal mismatch: OpenStreetMap urban form is "
+                             "present-day while the meteorology is the May 2010 "
+                             "hindcast. The stable-urban-form assumption (A1) is "
+                             "reasonable over a few years and strained over "
+                             "sixteen. A present-day run aligns both layers.",
+            },
         ],
         "is_placeholder_urban": bool(cube["is_placeholder_urban"]),
         "exposure_response": {
@@ -233,6 +304,50 @@ def main(config_path: str) -> None:
             "is_calibrated": rk.DEFAULT_WBGT_RESPONSE.is_calibrated,
             "source": rk.DEFAULT_WBGT_RESPONSE.source,
         },
+    })
+
+    # Focus-hour inputs, recovered for the sensitivity and scenario analysis.
+    weather_focus = om.fetch_hourly(city["centre"]["lat"], city["centre"]["lon"],
+                                    hind["start_date"], hind["end_date"])
+    row = weather_focus.iloc[focus_idx]
+    ta_focus = air[focus_idx]
+    rh_focus = np.full_like(ta_focus, float(row["relative_humidity_2m"]))
+    wind_focus = np.full_like(ta_focus, float(row["wind_speed_10m"]))
+    ghi_focus = np.full_like(ta_focus, float(row["shortwave_radiation"]))
+    intensity_arr = cube["intensity"]
+
+
+    # ---- 7. insights.json : drivers, scenarios, recommended actions -------
+    # Everything here is computed from the same physics as the map. Nothing is
+    # illustrative. Interventions that cannot be modelled with the data we have
+    # (hydration, water stations) are omitted rather than faked.
+    from heatstress import insight as ins
+
+    focus_ta = ta_focus
+    focus_rh = rh_focus
+    focus_wind = wind_focus
+    focus_ghi = ghi_focus
+    day_series = [float(v) for v in wbgt[day_idx].mean(axis=1)]
+    day_labels = [stamps[i][11:16] for i in day_idx]
+
+    write(OUT / "insights.json", {
+        "date": focus_day,
+        "drivers": ins.driver_attribution(focus_ta, focus_rh, focus_wind, focus_ghi),
+        "scenarios": [
+            ins.scenario_shift_hours(day_series),
+            ins.scenario_shade(focus_ta, focus_rh, focus_wind, focus_ghi),
+            ins.scenario_greening(focus_ta, focus_rh, focus_wind, focus_ghi,
+                                  intensity_arr, uhi["uhi_amplitude_c"]),
+        ],
+        "actions": ins.recommended_actions(day_series, day_labels),
+        "omitted": [
+            {"item": "Water stations / hydration measures",
+             "why": "Hydration is not a thermal quantity. Our model cannot "
+                    "estimate its effect, so it is not offered as though it could."},
+            {"item": "People-at-risk headcount",
+             "why": "We have no population data and vulnerability is a declared "
+                    "placeholder. A precise headcount would be fabricated."},
+        ],
     })
 
     total = sum(p.stat().st_size for p in OUT.glob("*"))

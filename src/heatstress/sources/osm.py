@@ -139,6 +139,49 @@ class OSMUrbanForm:
             for i in range(n_lat) for j in range(n_lon)
         ]
 
+
+    def fetch_places(self, bbox: dict, force_refresh: bool = False,
+                     verbose: bool = False) -> list[dict]:
+        """Named places (suburbs, neighbourhoods, villages) inside the bbox.
+
+        WHY THIS EXISTS: H3 cells are identified by codes like "8842cc6821fffff",
+        which is meaningless to a human. Choosing hexagons over municipal wards
+        avoided a multi-day shapefile hunt, but the cost is that no cell has a
+        name -- and a user cannot act on, or even discuss, a zone they cannot
+        name.
+
+        OpenStreetMap carries named place *nodes*, so one query for the whole
+        city is enough; each cell then takes the name of its nearest place. That
+        is far lighter and more polite than reverse-geocoding 392 centroids
+        one at a time against Nominatim.
+
+        Returns dicts of {name, lat, lon, kind}.
+        """
+        bounds = (f'{bbox["min_lat"]:.5f},{bbox["min_lon"]:.5f},'
+                  f'{bbox["max_lat"]:.5f},{bbox["max_lon"]:.5f}')
+        query = f"""
+        [out:json][timeout:{self.timeout}];
+        (
+          node["place"~"^(city|town|suburb|quarter|neighbourhood|village|hamlet|city_district)$"]["name"]({bounds});
+        );
+        out;
+        """
+        payload = self._query("places", query, force_refresh, verbose)
+
+        places = []
+        for element in payload.get("elements", []):
+            tags = element.get("tags") or {}
+            name = tags.get("name")
+            if not name or element.get("lat") is None:
+                continue
+            places.append({
+                "name": name,
+                "lat": float(element["lat"]),
+                "lon": float(element["lon"]),
+                "kind": tags.get("place", "place"),
+            })
+        return places
+
     # -- geometry helpers (no shapely: keeps the dependency surface tiny) --
 
     @staticmethod

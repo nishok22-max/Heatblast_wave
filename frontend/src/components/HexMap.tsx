@@ -1,0 +1,291 @@
+import { useMemo, useRef, useState } from "react";
+import type { HeatData, MetricKey } from "../types";
+import type { ScaleMode } from "../metrics";
+import {
+  METRICS,
+  RAMP,
+  colourInDomain,
+  domainFor,
+  formatValue,
+  paddedDomain,
+} from "../metrics";
+
+/**
+ * The console map — hand-rolled SVG rather than MapLibre.
+ *
+ * WHY NOT MAPLIBRE:
+ * MapLibre v6 loads its parser in a separate web worker
+ * (`assets/maplibre-gl-worker.mjs`). Chromium refuses to construct a worker
+ * from a `file://` origin, so the map would render blank exactly when the demo
+ * is opened straight from disk — which is the scenario NFR-1 exists to protect.
+ *
+ * And we do not need what MapLibre is for. There is no basemap (by design, so
+ * nothing is fetched), no tiles, no reprojection, and 392 polygons is a trivial
+ * amount of geometry. Rendering them directly buys:
+ *
+ *   - guaranteed offline operation, no worker and no network
+ *   - ~1.5 MB less bundle
+ *   - vector output that prints correctly
+ *   - real keyboard accessibility: each cell is a focusable element
+ *
+ * Projection is equirectangular with a cos(latitude) correction, which is
+ * indistinguishable from anything fancier across a 16 km city.
+ */
+
+const VIEW_W = 1000;
+const PAD = 8;
+
+export function HexMap({
+  data,
+  metric,
+  hour,
+  selected,
+  onSelect,
+  scaleMode,
+}: {
+  data: HeatData;
+  metric: MetricKey;
+  hour: number;
+  selected: string | null;
+  onSelect: (h3: string | null) => void;
+  scaleMode: ScaleMode;
+}) {
+  const def = METRICS[metric];
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  const { cells, viewH } = useMemo(() => {
+    const { bbox } = data.meta;
+    const latMid = (bbox.min_lat + bbox.max_lat) / 2;
+    const kx = Math.cos((latMid * Math.PI) / 180);
+    const spanLon = (bbox.max_lon - bbox.min_lon) * kx;
+    const spanLat = bbox.max_lat - bbox.min_lat;
+    const scale = (VIEW_W - PAD * 2) / spanLon;
+    const height = spanLat * scale + PAD * 2;
+
+    const project = (lon: number, lat: number): [number, number] => [
+      PAD + (lon - bbox.min_lon) * kx * scale,
+      // SVG y grows downward; latitude grows upward.
+      height - PAD - (lat - bbox.min_lat) * scale,
+    ];
+
+    const list = data.hexes.features.map((f) => {
+      const points = f.geometry.coordinates[0]
+        .map(([lon, lat]) => project(lon, lat).map((n) => n.toFixed(1)).join(","))
+        .join(" ");
+      return { props: f.properties, points };
+    });
+
+    return { cells: list, viewH: height };
+  }, [data]);
+
+  // Absolute = the metric's fixed all-day domain. Contrast = rescaled to the
+  // values actually present at this hour, which is the only way the intra-city
+  // pattern is visible at the peak of the event.
+  const domain = useMemo<[number, number]>(() => {
+    if (scaleMode === "absolute") return domainFor(metric, data.meta.domains);
+    const values = data.hexes.features
+      .map((f) => data.hourly.hexes[f.properties.h3_index]?.[metric][hour])
+      .filter((v): v is number => Number.isFinite(v));
+    if (!values.length) return domainFor(metric, data.meta.domains);
+    return paddedDomain(Math.min(...values), Math.max(...values));
+  }, [data, metric, hour, scaleMode, def]);
+
+  const viewBox = `${pan.x} ${pan.y} ${VIEW_W / zoom} ${viewH / zoom}`;
+  const active = hovered ?? selected;
+  const activeSeries = active ? data.hourly.hexes[active] : null;
+  const activeProps = active
+    ? data.hexes.features.find((f) => f.properties.h3_index === active)?.properties
+    : undefined;
+
+  function clampPan(x: number, y: number) {
+    const maxX = VIEW_W - VIEW_W / zoom;
+    const maxY = viewH - viewH / zoom;
+    return { x: Math.min(Math.max(0, x), maxX), y: Math.min(Math.max(0, y), maxY) };
+  }
+
+  return (
+    <div className="relative h-full w-full bg-sunken overflow-hidden">
+      <svg
+        viewBox={viewBox}
+        className="h-full w-full touch-none"
+        style={{ cursor: drag.current ? "grabbing" : "default" }}
+        role="img"
+        aria-label={`${def.label} across ${data.meta.city}, ${data.meta.n_cells} zones`}
+        onMouseDown={(e) => {
+          drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+        }}
+        onMouseMove={(e) => {
+          const d = drag.current;
+          if (!d) return;
+          const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+          const perPx = VIEW_W / zoom / rect.width;
+          setPan(
+            clampPan(d.px - (e.clientX - d.x) * perPx, d.py - (e.clientY - d.y) * perPx),
+          );
+        }}
+        onMouseUp={() => {
+          drag.current = null;
+        }}
+        onMouseLeave={() => {
+          drag.current = null;
+          setHovered(null);
+        }}
+      >
+        {cells.map(({ props, points }) => {
+          const series = data.hourly.hexes[props.h3_index];
+          const value = series ? series[metric][hour] : NaN;
+          const isSelected = props.h3_index === selected;
+          return (
+            <polygon
+              key={props.h3_index}
+              points={points}
+              fill={colourInDomain(value, domain)}
+              stroke={isSelected ? "#101010" : "#ffffff"}
+              strokeWidth={isSelected ? 3 : 0.5}
+              strokeOpacity={isSelected ? 1 : 0.55}
+              tabIndex={0}
+              role="button"
+              aria-label={`Zone ending ${props.h3_index.slice(-6)}, ${def.label} ${formatValue(value, def)}`}
+              style={{ cursor: "pointer", outline: "none" }}
+              onClick={() => onSelect(props.h3_index)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(props.h3_index);
+                }
+              }}
+              onMouseEnter={() => setHovered(props.h3_index)}
+            />
+          );
+        })}
+
+        {/* Geographic anchors so the map reads as a place without a basemap. */}
+        {cells
+          .filter((c) => c.props.water > 0.15)
+          .map((c) => (
+            <polygon
+              key={`w-${c.props.h3_index}`}
+              points={c.points}
+              fill="none"
+              stroke="#2b6ca3"
+              strokeWidth={1.8}
+              strokeOpacity={0.9}
+              pointerEvents="none"
+            />
+          ))}
+        {cells
+          .filter((c) => c.props.green > 0.12)
+          .map((c) => (
+            <polygon
+              key={`g-${c.props.h3_index}`}
+              points={c.points}
+              fill="none"
+              stroke="#3f7d43"
+              strokeWidth={1.5}
+              strokeOpacity={0.85}
+              pointerEvents="none"
+            />
+          ))}
+      </svg>
+
+      {/* Hover readout — avoids a tooltip library and stays put while scrubbing. */}
+      {active && activeSeries && (
+        <div className="absolute top-3 left-3 bg-surface/95 border border-line rounded-sm px-2.5 py-1.5 pointer-events-none">
+          <div className="text-[12px] font-semibold text-ink leading-tight">
+            {activeProps?.place
+              ? `${activeProps.place_exact ? "" : "near "}${activeProps.place}`
+              : "Unnamed area"}
+          </div>
+          <div className="text-[15px] font-semibold tnum text-ink leading-tight">
+            {formatValue(activeSeries[metric][hour], def)}
+          </div>
+        </div>
+      )}
+
+      <div className="absolute top-3 right-3 flex flex-col gap-1 no-print">
+        {[
+          { label: "+", act: () => setZoom((z) => Math.min(6, z * 1.5)) },
+          { label: "−", act: () => setZoom((z) => Math.max(1, z / 1.5)) },
+          {
+            label: "⤢",
+            act: () => {
+              setZoom(1);
+              setPan({ x: 0, y: 0 });
+            },
+          },
+        ].map((b) => (
+          <button
+            key={b.label}
+            onClick={b.act}
+            className="w-7 h-7 bg-surface border border-line rounded-[2px] text-ink-soft hover:text-ink hover:border-line-strong text-[13px] leading-none"
+            aria-label={b.label === "+" ? "Zoom in" : b.label === "−" ? "Zoom out" : "Reset view"}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
+      <Legend metric={metric} domain={domain} scaleMode={scaleMode} />
+    </div>
+  );
+}
+
+function Legend({
+  metric,
+  domain,
+  scaleMode,
+}: {
+  metric: MetricKey;
+  domain: [number, number];
+  scaleMode: ScaleMode;
+}) {
+  const def = METRICS[metric];
+  const [lo, hi] = domain;
+  return (
+    <div className="absolute bottom-3 left-3 bg-surface/95 border border-line rounded-sm px-3 py-2">
+      <div className="flex items-baseline justify-between gap-3 mb-1">
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-ink-soft">
+          {def.plain}
+        </span>
+        <span
+          className={`text-[9px] uppercase tracking-wider font-semibold ${
+            scaleMode === "contrast" ? "text-flag" : "text-ink-faint"
+          }`}
+        >
+          {scaleMode === "contrast" ? "scaled to this hour" : "absolute scale"}
+        </span>
+      </div>
+      <div className="flex h-3 w-52 overflow-hidden rounded-[2px] border border-line">
+        {RAMP.map((c) => (
+          <div key={c} className="flex-1" style={{ background: c }} />
+        ))}
+      </div>
+      {/* Words as well as numbers. A reader who does not know what 58 °C UTCI
+          means still needs to know which end of the ramp is dangerous, and
+          colour alone must never carry meaning (WCAG 1.4.1). */}
+      <div className="flex justify-between w-52 mt-1 text-[10px] text-ink-faint">
+        <span>safer</span>
+        <span>more dangerous</span>
+      </div>
+      <div className="flex justify-between w-52 text-[10px] tnum text-ink-faint">
+        <span>{formatValue(lo, def)}</span>
+        <span>{formatValue(hi, def)}</span>
+      </div>
+      <div className="mt-1.5 flex gap-3 text-[10px] text-ink-faint">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 border-t-2 border-[#2b6ca3]" /> water
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 border-t-2 border-[#3f7d43]" /> green
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Fixed domains, deliberately not derived from the visible hour: a rescaling
+ *  legend would hide the diurnal swing the scrubber exists to show. */
+export const LEGEND_IS_FIXED_DOMAIN = true;

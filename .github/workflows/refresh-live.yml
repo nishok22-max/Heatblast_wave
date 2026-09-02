@@ -1,0 +1,91 @@
+# Scheduled refresh of the live forecast, and redeploy of the demo.
+#
+# WHY A WORKFLOW AND NOT BROWSER-SIDE POLLING:
+# the physics (Liljegren WBGT, the UTCI polynomial) runs in Python via
+# thermofeel. The browser cannot recompute indices from raw weather without
+# porting all of that to TypeScript, which would be days of work and a fresh
+# source of divergence between the two implementations. So the pipeline re-runs
+# here and republishes the baked JSON, which is what the page reads.
+#
+# Cost: nothing. No server, no cron box, no ops.
+#
+# NOTE: the demo remains fully offline-capable regardless. The data is compiled
+# into the page, so a viewer opening index.html from a USB stick sees the last
+# published forecast with its retrieval timestamp on screen — never a blank map.
+
+name: Refresh live forecast
+
+on:
+  schedule:
+    # Every 6 hours. Open-Meteo updates more often than that, but a heat
+    # forecast does not swing meaningfully hour to hour, and this keeps the
+    # commit history readable.
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}       # lets you refresh on demand before a demo
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: refresh-live
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # The physics is the product. If a reference value has drifted, stop
+      # rather than publish numbers nobody checked.
+      - name: Run test suite
+        run: python -m pytest -q
+
+      # Urban form is fetched from OpenStreetMap and cached in the repo; it does
+      # not change day to day, so this step never touches Overpass.
+      - name: Refresh live forecast
+        run: python scripts/07_live.py config/ahmedabad.yaml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build demo
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit refreshed data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/data/live
+          git diff --staged --quiet || git commit -m "chore: refresh live forecast [skip ci]"
+          git push
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
