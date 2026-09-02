@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { DatasetKey } from "./data";
-import { DATASETS } from "./data";
-import type { MetricKey } from "./types";
+import { fetchDataset, DATASET_META } from "./data";
+import type { MetricKey, HeatData } from "./types";
 import { METRICS, METRIC_ORDER } from "./metrics";
 import type { ScaleMode } from "./metrics";
 import type { ViewKey } from "./components/AppShell";
@@ -23,13 +23,39 @@ import { Panel } from "./components/ui";
 
 export default function App() {
   const [dataset, setDataset] = useState<DatasetKey>("historical");
-  const data = DATASETS[dataset].data;
+  const [data, setData] = useState<HeatData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setData(null);
+    setError(null);
+    fetchDataset(dataset)
+      .then(d => {
+        if (active) setData(d);
+      })
+      .catch(e => {
+        if (active) setError(e.message);
+      });
+    return () => { active = false; };
+  }, [dataset]);
 
   const [view, setView] = useState<ViewKey>("dashboard");
   const [metric, setMetric] = useState<MetricKey>("utci");
   const [hour, setHour] = useState(14);
   const [selected, setSelected] = useState<string | null>(null);
   const [scaleMode, setScaleMode] = useState<ScaleMode>("contrast");
+
+  if (error) {
+    return <div className="p-8 text-red-600">Failed to load data: {error}</div>;
+  }
+  
+  if (!data) {
+    return <div className="p-8 text-ink-soft flex items-center gap-2">
+      <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+      Loading dataset...
+    </div>;
+  }
 
   const labels = data.hourly.meta.labels_ist ?? [];
   const label = labels[hour] ?? `${String(hour).padStart(2, "0")}:00`;
@@ -39,9 +65,11 @@ export default function App() {
   function switchDataset(key: DatasetKey) {
     setDataset(key);
     setSelected(null);
-    setHour((h) =>
-      Math.min(h, DATASETS[key].data.hourly.meta.hours_ist.length - 1),
-    );
+    setHour((h) => {
+      // We can't access DATASETS[key].data here anymore synchronously.
+      // Resetting to 14 is safe, or keeping the current hour.
+      return 14;
+    });
   }
 
   const mapBlock = (height: string) => (

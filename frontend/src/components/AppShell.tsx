@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { DatasetKey } from "../data";
-import { DATASETS } from "../data";
+import { DATASET_META } from "../data";
 import type { HeatData } from "../types";
 
 export type ViewKey =
@@ -141,7 +141,7 @@ export function AppShell({
               role="tablist"
               aria-label="Choose which period to view"
             >
-              {(Object.keys(DATASETS) as DatasetKey[]).map((key) => {
+              {(Object.keys(DATASET_META) as DatasetKey[]).map((key) => {
                 const on = dataset === key;
                 return (
                   <button
@@ -156,7 +156,7 @@ export function AppShell({
                     }`}
                   >
                     <span className="block text-[12px] font-medium whitespace-nowrap">
-                      {DATASETS[key].label}
+                      {DATASET_META[key].label}
                     </span>
                   </button>
                 );

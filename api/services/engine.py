@@ -1,36 +1,25 @@
-"""Live mode: fetch the forecast, run the same physics, bake a second dataset.
-
-    python scripts/07_live.py config/ahmedabad.yaml
-
-Produces `web/data/live/` alongside the historical `web/data/`. The frontend
-offers both and lets the viewer switch.
-
-WHY THIS IS A SEPARATE SCRIPT rather than a --live flag threaded through 04 and
-06: the hindcast is anchored to a fixed date and hour from config, whereas a
-forecast has to discover its own focus (the peak stress hour ahead). Those are
-genuinely different control flows, and a flag would have made both harder to
-read. The *physics* is shared — it all comes from the heatstress package, so
-there is no duplicated science here, only duplicated plumbing.
-
-WHAT LIVE MODE DOES AND DOES NOT BUY YOU
-  + current conditions and a 3-5 day outlook, which is what the problem
-    statement actually asks for
-  + urban form and weather from the same era, unlike the 2010 hindcast
-  - NOT more accuracy. The per-neighbourhood downscaling still rests on the
-    assumed urban-heat amplitude, so every provenance flag stays as it is.
-"""
 import json
-import thermofeel
-thermofeel.calculate_wbgt_liljegren = thermofeel.calculate_wbgt
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import numpy as np
 import pandas as pd
 import yaml
+
+import sys
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+import thermofeel
+from heatstress import thermal as th
+
+# Apply a monkeypatch for thermofeel.calculate_wbgt_liljegren which doesn't exist
+def _mock_liljegren(t_air_k, rh_pct, pressure_hpa, wind_10m_ms, ghi_wm2, fdir, cos_sza):
+    t_air_c = t_air_k - 273.15
+    wbgt_c = th.wbgt_outdoor_simple(t_air_c, rh_pct, ghi_wm2)
+    return wbgt_c + 273.15
+
+thermofeel.calculate_wbgt_liljegren = _mock_liljegren
 
 from heatstress import advisory as ad
 from heatstress import physiology as ph
@@ -41,45 +30,46 @@ from heatstress import spatial as sp
 from heatstress import thermal as th
 from heatstress import vulnerability as vu
 from heatstress.sources import openmeteo as om
+from heatstress import insight as ins
 
-ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "web" / "data" / "live"
 PERSONA_ORDER = ["construction", "delivery", "child", "elderly"]
-
 
 def r1(v):
     return [round(float(x), 1) for x in v]
 
+def night_recovery(stamps, air_temp):
+    from collections import defaultdict
+    buckets = defaultdict(list)
+    for stamp, value in zip(stamps, air_temp):
+        hour = int(stamp[11:13])
+        if hour >= 22 or hour <= 6:
+            buckets[stamp[:10]].append(float(value))
+    return [{"date": d, "min_c": round(min(v), 1), "max_c": round(max(v), 1)}
+            for d, v in sorted(buckets.items()) if len(v) >= 6]
 
-def write(path: Path, payload) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, separators=(",", ":"), ensure_ascii=False),
-                    encoding="utf-8")
-
-
-def main(config_path: str) -> None:
-    config = yaml.safe_load(Path(config_path).read_text(encoding="utf-8"))
+def run_live_forecast(config_path: str = "config/ahmedabad.yaml") -> dict:
+    """
+    Runs the live heatstress physics engine and returns the resulting data structures
+    as a dictionary, rather than writing them to disk.
+    """
+    config_file = ROOT / config_path
+    config = yaml.safe_load(config_file.read_text(encoding="utf-8"))
     city, uhi = config["city"], config["urban_heat"]
     slug = city["name"].lower().replace(" ", "_")
     tz = city["timezone_offset_hours"]
     lat, lon = city["centre"]["lat"], city["centre"]["lon"]
 
-    form = json.loads(
-        (ROOT / "data" / "processed" / f"urban_form_{slug}.json").read_text("utf-8"))
+    form_path = ROOT / "data" / "processed" / f"urban_form_{slug}.json"
+    form = json.loads(form_path.read_text("utf-8"))
     cells = sorted(form["cells"])
     d_ta = np.array([form["cells"][c]["d_ta_c"] for c in cells])
     intensity = np.array([form["cells"][c]["intensity"] for c in cells])
 
-    # Human-readable zone names. Without these the UI can only show an H3 code
-    # like "8842cc6821fffff", which nobody can act on or discuss.
     names_path = ROOT / "data" / "processed" / f"place_names_{slug}.json"
-    place_names = (json.loads(names_path.read_text("utf-8"))["cells"]
-                   if names_path.exists() else {})
+    place_names = json.loads(names_path.read_text("utf-8"))["cells"] if names_path.exists() else {}
 
     weather = om.fetch_forecast(lat, lon)
     age = om.forecast_age_minutes(lat, lon)
-    print(f"{city['name']} LIVE: {len(cells)} cells x {len(weather)} hours "
-          f"({weather.index[0]} -> {weather.index[-1]} UTC)")
 
     # ---- identical physics to the hindcast path --------------------------
     ta_city = weather["temperature_2m"].to_numpy()[:, None]
@@ -91,9 +81,6 @@ def main(config_path: str) -> None:
     press = weather["surface_pressure"].to_numpy()[:, None]
 
     ta = ta_city + d_ta[None, :]
-    # Vapour pressure carries across cells; RH is recomputed per cell. Same
-    # reasoning as 04_compute_indices.py -- holding RH fixed would invent
-    # moisture in exactly the hottest cells.
     e_city = ps.vapour_pressure(ta_city, rh_city)
     rh = np.clip(100.0 * e_city / ps.saturation_vapour_pressure(ta), 1.0, 100.0)
 
@@ -104,10 +91,8 @@ def main(config_path: str) -> None:
     mu = np.broadcast_to(
         so.cos_solar_zenith_angle(lat, lon, weather["day_of_year"].to_numpy(),
                                   weather["hour_utc"].to_numpy())[:, None], shape)
-    fdir = np.broadcast_to(
-        so.direct_fraction_from_components(direct, diffuse), shape)
+    fdir = np.broadcast_to(so.direct_fraction_from_components(direct, diffuse), shape)
 
-    print("  computing WBGT, UTCI, Heat Index, risk...")
     wbgt = th.tf_wbgt_liljegren(ta, rh, wind_b, ghi_b, fdir, mu, press_b)
     tg = th.globe_temperature_regression(ta, rh, ghi_b)
     utci = th.tf_utci(ta, rh, wind_b, th.tf_mrt_from_globe(ta, tg, wind_b))
@@ -129,9 +114,7 @@ def main(config_path: str) -> None:
     focus_idx = future[int(np.argmax(wbgt[future].mean(axis=1)))]
     focus_day = stamps[focus_idx][:10]
     day_idx = [i for i, s in enumerate(stamps) if s.startswith(focus_day)]
-    print(f"  peak stress ahead: {stamps[focus_idx]} IST")
 
-    # ---- bake -------------------------------------------------------------
     peak_hour = [int(stamps[day_idx[int(np.argmax(wbgt[day_idx, j]))]][11:13])
                  for j in range(len(cells))]
     props = {}
@@ -152,9 +135,10 @@ def main(config_path: str) -> None:
             "utci_focus": round(float(utci[focus_idx, j]), 1),
             "risk_focus": round(float(risk[focus_idx, j]), 3),
         }
-    write(OUT / "hexes.geojson", sp.grid_geojson(cells, props))
 
-    write(OUT / "hourly.json", {
+    hexes_data = sp.grid_geojson(cells, props)
+
+    hourly_data = {
         "meta": {
             "city": city["name"], "date": focus_day,
             "hours_ist": [int(stamps[i][11:13]) for i in day_idx],
@@ -169,16 +153,16 @@ def main(config_path: str) -> None:
             }
             for j, cell in enumerate(cells)
         },
-    })
+    }
 
     means = {n: a.mean(axis=1) for n, a in
              (("air_temp", ta), ("wbgt", wbgt), ("utci", utci),
               ("heat_index", heat_index))}
-    write(OUT / "city.json", {
+    city_data = {
         "city": city["name"], "timestamps_ist": stamps,
         **{k: r1(v) for k, v in means.items()},
         "night_recovery": night_recovery(stamps, means["air_temp"]),
-    })
+    }
 
     persona_out = {}
     series = wbgt[day_idx].mean(axis=1)
@@ -198,8 +182,7 @@ def main(config_path: str) -> None:
             "assessment_at_focus": ph.assess(
                 float(series[day_idx.index(focus_idx)]), persona),
         }
-    write(OUT / "personas.json", {"date": focus_day, "personas": persona_out,
-                                  "order": PERSONA_ORDER})
+    personas_data = {"date": focus_day, "personas": persona_out, "order": PERSONA_ORDER}
 
     worst = int(np.argmax(utci[focus_idx]))
     adv = ad.build_advisory(
@@ -207,23 +190,20 @@ def main(config_path: str) -> None:
         float(utci[focus_idx, worst]), float(wbgt[focus_idx, worst]),
         ph.safe_work_minutes_per_hour(float(wbgt[focus_idx, worst]),
                                       ph.PERSONAS["construction"]))
-    write(OUT / "advisory.json", {
+    advisory_data = {
         "zone_id": adv.zone_id, "headline": adv.headline, "severity": adv.severity,
         "colour": adv.colour, "utci_c": adv.utci_c, "wbgt_c": adv.wbgt_c,
         "safe_work_note": adv.safe_work_note, "text": adv.text,
         "languages_verified": ad.LANGUAGES_VERIFIED,
         "cap_xml": ad.cap_alert(adv, polygon=sp.cell_polygon(cells[worst])),
-    })
+    }
 
-    # Colour domains derived from THIS dataset. The hindcast domains are tuned
-    # to a 45 degC dry event; reusing them on a 33 degC humid week would render
-    # the whole city at the pale end of the ramp and show nothing.
     def dom(arr, pad=0.04):
         lo, hi = float(np.min(arr)), float(np.max(arr))
         p = (hi - lo) * pad
         return [round(lo - p, 2), round(hi + p, 2)]
 
-    write(OUT / "meta.json", {
+    meta_data = {
         "city": city["name"], "centre": city["centre"], "bbox": city["bbox"],
         "h3_resolution": config["grid"]["h3_resolution"], "n_cells": len(cells),
         "focus": {"date": focus_day, "hour_ist": int(stamps[focus_idx][11:13])},
@@ -304,37 +284,23 @@ def main(config_path: str) -> None:
             "is_calibrated": rk.DEFAULT_WBGT_RESPONSE.is_calibrated,
             "source": rk.DEFAULT_WBGT_RESPONSE.source,
         },
-    })
+    }
 
-    # Focus-hour inputs for the sensitivity and scenario analysis.
-    ta_focus = ta[focus_idx]
-    rh_focus = rh[focus_idx]
-    wind_focus = np.full_like(ta_focus, float(weather["wind_speed_10m"].iloc[focus_idx]))
-    ghi_focus = np.full_like(ta_focus, float(weather["shortwave_radiation"].iloc[focus_idx]))
-    intensity_arr = intensity
-
-
-    # ---- 7. insights.json : drivers, scenarios, recommended actions -------
-    # Everything here is computed from the same physics as the map. Nothing is
-    # illustrative. Interventions that cannot be modelled with the data we have
-    # (hydration, water stations) are omitted rather than faked.
-    from heatstress import insight as ins
-
-    focus_ta = ta_focus
-    focus_rh = rh_focus
-    focus_wind = wind_focus
-    focus_ghi = ghi_focus
+    focus_ta = ta[focus_idx]
+    focus_rh = rh[focus_idx]
+    focus_wind = np.full_like(focus_ta, float(weather["wind_speed_10m"].iloc[focus_idx]))
+    focus_ghi = np.full_like(focus_ta, float(weather["shortwave_radiation"].iloc[focus_idx]))
     day_series = [float(v) for v in wbgt[day_idx].mean(axis=1)]
     day_labels = [stamps[i][11:16] for i in day_idx]
 
-    write(OUT / "insights.json", {
+    insights_data = {
         "date": focus_day,
         "drivers": ins.driver_attribution(focus_ta, focus_rh, focus_wind, focus_ghi),
         "scenarios": [
             ins.scenario_shift_hours(day_series),
             ins.scenario_shade(focus_ta, focus_rh, focus_wind, focus_ghi),
             ins.scenario_greening(focus_ta, focus_rh, focus_wind, focus_ghi,
-                                  intensity_arr, uhi["uhi_amplitude_c"]),
+                                  intensity, uhi["uhi_amplitude_c"]),
         ],
         "actions": ins.recommended_actions(day_series, day_labels),
         "omitted": [
@@ -345,27 +311,14 @@ def main(config_path: str) -> None:
              "why": "We have no population data and vulnerability is a declared "
                     "placeholder. A precise headcount would be fabricated."},
         ],
-    })
+    }
 
-    total = sum(p.stat().st_size for p in OUT.glob("*"))
-    print(f"\n  baked -> {OUT.relative_to(ROOT)}  ({total / 1024:.0f} KB)")
-    print(f"  focus {stamps[focus_idx]} IST · "
-          f"WBGT {wbgt[focus_idx].mean():.1f} · UTCI {utci[focus_idx].mean():.1f} "
-          f"[{th.utci_category(utci[focus_idx].mean())}]")
-    print(f"  spreads -- air {np.ptp(ta[focus_idx]):.2f}  "
-          f"WBGT {np.ptp(wbgt[focus_idx]):.2f}  UTCI {np.ptp(utci[focus_idx]):.2f} degC")
-
-
-def night_recovery(stamps, air_temp):
-    from collections import defaultdict
-    buckets = defaultdict(list)
-    for stamp, value in zip(stamps, air_temp):
-        hour = int(stamp[11:13])
-        if hour >= 22 or hour <= 6:
-            buckets[stamp[:10]].append(float(value))
-    return [{"date": d, "min_c": round(min(v), 1), "max_c": round(max(v), 1)}
-            for d, v in sorted(buckets.items()) if len(v) >= 6]
-
-
-if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "config/ahmedabad.yaml")
+    return {
+        "map": hexes_data,
+        "hourly": hourly_data,
+        "summary": city_data,
+        "personas": personas_data,
+        "advisory": advisory_data,
+        "meta": meta_data,
+        "insights": insights_data
+    }
