@@ -1,0 +1,327 @@
+<meta charset="utf-8">
+<title>One number for a whole district — case study</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: Calibri, "Segoe UI", Arial, sans-serif;
+    color: #3A3F52; background: #fff;
+  }
+  .page {
+    width: 210mm; height: 297mm; padding: 16mm 17mm 14mm;
+    position: relative; overflow: hidden;
+    page-break-after: always; display: flex; flex-direction: column;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  .eyebrow { font-size: 8.5pt; font-weight: 700; letter-spacing: .09em;
+             text-transform: uppercase; color: #8E1038; }
+  h1 { font-family: "Times New Roman", Georgia, serif; font-size: 30pt;
+       line-height: 1.1; color: #241043; font-weight: 700; margin: 5mm 0 3mm; }
+  h2 { font-family: "Times New Roman", Georgia, serif; font-size: 19pt;
+       line-height: 1.15; color: #241043; font-weight: 700; margin: 3mm 0 2.5mm; }
+  h3 { font-size: 11pt; color: #241043; margin: 4mm 0 1.5mm; font-weight: 700; }
+  p  { font-size: 10.2pt; line-height: 1.52; margin-bottom: 3mm; }
+  .lead { font-size: 12pt; line-height: 1.45; color: #241043; }
+  .muted { color: #7A7F91; }
+  strong { color: #241043; }
+
+  figure { margin: 3mm 0; }
+  figure img { width: 100%; display: block; border-radius: 2mm; }
+  figcaption { font-size: 7.8pt; color: #7A7F91; margin-top: 1.6mm;
+               line-height: 1.4; }
+  .fill { flex: 1; }
+
+  .facts { border-left: 2.5pt solid #8E1038; padding-left: 5mm; margin: 3mm 0; }
+  .facts li { font-size: 10pt; line-height: 1.5; margin-bottom: 2.2mm;
+              list-style: none; }
+  .facts li::before { content: "▪"; color: #C2185B; font-weight: 700;
+                      margin-right: 2.5mm; }
+
+  .pull { background: #FDF4E8; border-radius: 2mm; padding: 4.5mm 5mm;
+          margin: 3.5mm 0; }
+  .pull p { margin: 0; font-size: 10.4pt; line-height: 1.5; }
+  .quote { font-family: "Times New Roman", Georgia, serif; font-size: 12pt;
+           font-style: italic; color: #241043; line-height: 1.4; }
+  .attrib { font-size: 8.4pt; color: #7A7F91; margin-top: 2mm; }
+
+  .grid2 { display: flex; gap: 6mm; }
+  .grid2 > div { flex: 1; }
+
+  .stat { display: flex; gap: 4mm; margin-bottom: 3mm; align-items: baseline; }
+  .stat .n { font-size: 21pt; font-weight: 700; color: #8E1038;
+             min-width: 30mm; font-family: "Times New Roman", Georgia, serif; }
+  .stat .t { font-size: 9.4pt; line-height: 1.4; }
+
+  .foot { position: absolute; left: 17mm; right: 17mm; bottom: 8mm;
+          border-top: .6pt solid #E3DFEC; padding-top: 2mm;
+          font-size: 7.6pt; color: #7A7F91;
+          display: flex; justify-content: space-between; }
+
+  .refs li { font-size: 8.8pt; line-height: 1.45; margin-bottom: 2.6mm;
+             list-style: none; padding-left: 6mm; text-indent: -6mm; }
+  .refs .tag { font-weight: 700; color: #8E1038; }
+  code { font-family: Consolas, monospace; font-size: 8.6pt; color: #6B1030; }
+</style>
+
+<!-- ============================== PAGE 1 ============================== -->
+<div class="page">
+  <div class="eyebrow">Case study · Smart India Hackathon 2026 · PS 26083</div>
+  <h1>One number for a<br>whole district</h1>
+  <p class="lead">How India measures a heatwave — and what that measurement
+  cannot see.</p>
+  <div style="display:flex; gap:7mm; margin-top:5mm;">
+    <figure style="width:96mm; flex:none; margin:0;">
+      <img src="img/p1.jpg" alt="Land surface temperature across India">
+    </figure>
+    <div style="flex:1;">
+      <p>Every summer, India is warned about heat the same way: a single air
+      temperature, for an entire district, one or two days ahead. That number is
+      simple, fast and national — and it cannot distinguish a survivable hot day
+      from a lethal one, cannot see the nights, and cannot tell one neighbourhood
+      from the next.</p>
+      <p>This case study sets out the problem as it stands in
+      <strong>2026</strong>, using peer-reviewed work and contemporary reporting
+      only.</p>
+      <p>Every figure is attributed. Where a number is modelled rather than
+      counted, it says so. Where a source is an opinion piece, it is labelled as
+      one.</p>
+      <p class="muted" style="font-size:8.4pt; line-height:1.45; margin-top:6mm;">
+      <strong style="color:#8E1038">Land surface temperature across India,
+      29 April 2022.</strong> Reds exceed 55&nbsp;°C at the ground. The heat is not
+      evenly spread: it pools and breaks across hundreds of kilometres — and it
+      does so differently again inside every city marked on this map.<br><br>
+      Image: European Space Agency. Licence: Attribution (CC BY-SA 3.0 IGO).</p>
+    </div>
+  </div>
+  <div class="foot"><span>One number for a whole district</span><span>Page 1 of 7</span></div>
+</div>
+
+<!-- ============================== PAGE 2 ============================== -->
+<div class="page">
+  <div class="eyebrow">1 · The problem, present tense</div>
+  <h2>Three record summers in a row</h2>
+  <p>This is not a historical problem being revisited. Summer 2026 was the third
+  consecutive record-breaking Indian summer, following 2024 and 2025.</p>
+  <figure>
+    <img src="img/p4.jpg" alt="Land surface temperature over northwest India exceeding 60 C">
+    <figcaption><strong>Land surface temperature, 1 May 2022 — scale runs past
+    60&nbsp;°C.</strong> Ahmedabad, Bikaner, New Delhi and Nagpur all sit inside the
+    darkest band. Image: European Union, Copernicus Sentinel-3 imagery, processed by
+    @DEFIS_EU.</figcaption>
+  </figure>
+  <ul class="facts">
+    <li><strong>46.9&nbsp;°C</strong> at Akola, Maharashtra on 26 April 2026 — reported
+    as the country's highest that day.</li>
+    <li>On a single day in late April 2026, <strong>all of the top 50 hottest cities in
+    the world</strong> were in India.</li>
+    <li>By late May, temperatures in several cities sat <strong>well above
+    45&nbsp;°C</strong>, and New Delhi stayed over 40&nbsp;°C for a full week.</li>
+    <li><strong>At least 16 people</strong> had died of heatstroke in southern India,
+    with deaths reported in Telangana.</li>
+    <li>The national <strong>Heat Wave Action Plan was implemented only after
+    temperatures had stayed above 40&nbsp;°C for 40 consecutive days.</strong></li>
+  </ul>
+  <p class="muted" style="font-size:9pt">Sources: V. Krishnan, <em>Al Jazeera</em>
+  (opinion), 22 May 2026, for the Akola reading, the top-50 claim and the Action Plan
+  timing; Phys.org/AFP, 24 May 2026, for the death toll and the Delhi and IMD figures.
+  Full citations on page 7.</p>
+  <div class="fill"></div>
+  <div class="foot"><span>1 · The problem, present tense</span><span>Page 2 of 7</span></div>
+</div>
+
+<!-- ============================== PAGE 3 ============================== -->
+<div class="page">
+  <div class="eyebrow">2 · How the warning is built</div>
+  <h2>A dry-bulb threshold, at district scale</h2>
+  <p>The India Meteorological Department declares a heatwave when air temperature
+  reaches <strong>40&nbsp;°C in the plains or 30&nbsp;°C in hilly regions</strong>,
+  sustained for at least two consecutive days at <strong>4.5&nbsp;°C above
+  normal</strong>. That is a <em>dry-bulb</em> criterion: it measures the air, not
+  what the air does to a person.</p>
+  <figure>
+    <img src="img/p2.jpg" alt="Land surface temperature beside true colour, northwest India">
+    <figcaption><strong>The same ground, twice: surface temperature (left) beside the
+    true-colour view (right), 12 April 2022.</strong> On the right, Gujarat and
+    Rajasthan look uniform. On the left, the same area ranges across 30&nbsp;°C of
+    surface temperature. Ahmedabad is marked on both. Image: European Union, Copernicus
+    Sentinel-3 imagery, processed by @DEFIS_EU.</figcaption>
+  </figure>
+  <p>A body does not shed heat by reading a thermometer. It sheds heat mainly by
+  evaporating sweat, and humidity closes that route. Forty degrees in dry air and
+  forty degrees in humid air are the same reading and materially different days —
+  and only the second is capable of killing a healthy adult who cannot get indoors.</p>
+  <div class="pull">
+    <p class="quote">“Heatwave events are defined using dry-bulb temperature … rather
+    than wet-bulb temperature or heat index … some high-heat-stress days will not
+    breach the dry-bulb 97th percentile, and therefore genuine heatwave events may be
+    missed.”</p>
+    <p class="attrib">Narang &amp; Gadgil, <em>Frontiers in Environmental Health</em>,
+    26 May 2026 — stating the limitation of their own national study, and recommending
+    wet-bulb metrics “in humid coastal districts where dry-bulb temperature understates
+    physiological heat stress.”</p>
+  </div>
+  <div class="fill"></div>
+  <div class="foot"><span>2 · How the warning is built</span><span>Page 3 of 7</span></div>
+</div>
+
+<!-- ============================== PAGE 4 ============================== -->
+<div class="page">
+  <div class="eyebrow">3 · What gets counted</div>
+  <h2>The gap between the record and the toll</h2>
+  <p>Because the trigger is coarse and the diagnosis is hard, heat deaths in India
+  are recorded at a small fraction of the modelled burden.</p>
+  <figure>
+    <img src="img/fig_undercount.png" alt="Official heat deaths compared with modelled excess deaths">
+    <figcaption>Figures as published. The official count is annual and national; the
+    modelled counts are per heat event.</figcaption>
+  </figure>
+  <div class="grid2">
+    <div>
+      <h3>What the system records</h3>
+      <div class="stat"><span class="n">7,192</span><span class="t">suspected
+      heatstroke cases logged by the National Centre for Disease Control,
+      1 March – 24 June 2025.</span></div>
+      <div class="stat"><span class="n">14</span><span class="t">deaths
+      <em>confirmed</em> over that same period.</span></div>
+    </div>
+    <div>
+      <h3>What independent counts find</h3>
+      <div class="stat"><span class="n">733</span><span class="t">heatstroke deaths
+      identified in media reports, March–July 2023 …</span></div>
+      <div class="stat"><span class="n">360</span><span class="t">… against the
+      official figure for the same window — roughly half.</span></div>
+    </div>
+  </div>
+  <div class="pull">
+    <p class="quote">“Official statistics substantially underreport heat-related
+    deaths.”</p>
+    <p class="attrib">Narang &amp; Gadgil (2026). Public health specialist
+    Dr Dileep Mavlankar has separately estimated the undercount at a factor of at
+    least ten.</p>
+  </div>
+  <div class="fill"></div>
+  <div class="foot"><span>3 · What gets counted</span><span>Page 4 of 7</span></div>
+</div>
+
+<!-- ============================== PAGE 5 ============================== -->
+<div class="page">
+  <div class="eyebrow">4 · Where the burden actually falls</div>
+  <h2>A national figure cannot direct a single truck</h2>
+  <p>In May 2026 the first district-level analysis covering all
+  <strong>765 Indian districts</strong> was published. It transfers city-specific
+  heatwave–mortality risk to climatically similar districts, using Köppen-Geiger
+  climate zones and a 97th-percentile temperature threshold, against baseline
+  mortality from the Civil Registration System.</p>
+  <figure>
+    <img src="img/fig_burden.png" alt="Distribution of modelled excess deaths by state and district">
+  </figure>
+  <p>The distribution is the point. A national total of roughly 30,000 tells a
+  minister the scale of the problem but not where to send anything. Uttar Pradesh
+  alone carries more than a quarter of it. Three districts — <strong>Ahmedabad,
+  Jaipur and Surat</strong> — each exceed 250 excess deaths in a single five-day
+  event.</p>
+  <div class="pull">
+    <p class="quote">“Granular spatial-temporal data on how heatwaves affect mortality
+    at the district level in India remain inaccessible.”</p>
+    <p class="attrib">Narang &amp; Gadgil (2026), on why the study was needed. District
+    resolution is the current research frontier — not the current warning practice.</p>
+  </div>
+  <div class="fill"></div>
+  <div class="foot"><span>4 · Where the burden falls</span><span>Page 5 of 7</span></div>
+</div>
+
+<!-- ============================== PAGE 6 ============================== -->
+<div class="page">
+  <div class="eyebrow">5 · The resolution problem</div>
+  <h2>Even a district is an average</h2>
+  <p>Ahmedabad district is the single highest-burden district in the national study.
+  But a district is not where people live — a neighbourhood is. The map below
+  resolves one city into 392 zones of about 0.74&nbsp;km² each and computes, for one
+  moment, what the heat does to a human body in each.</p>
+  <figure>
+    <img src="img/hexmap.png" alt="392 zones of Ahmedabad coloured by felt heat">
+    <figcaption>Ahmedabad resolved to 392 zones. Colour is UTCI — the temperature the
+    heat <em>feels like</em> to a body, accounting for humidity, wind and radiation.
+    Pale cells trace the Sabarmati and the city's green cover; the darkest are dense
+    built-up ground. Figure produced by this project.</figcaption>
+  </figure>
+  <div class="grid2">
+    <div>
+      <div class="stat"><span class="n">3.00 °C</span><span class="t">the spread in
+      <strong>air temperature</strong> between the coolest and hottest zone, at one
+      instant.</span></div>
+    </div>
+    <div>
+      <div class="stat"><span class="n">3.88 °C</span><span class="t">the spread in
+      what that heat <strong>did to a body</strong>, at the same instant.</span></div>
+    </div>
+  </div>
+  <p>The hottest and coolest neighbourhoods are a few kilometres apart. A single
+  district-level number averages that difference away — and it is precisely that
+  difference that decides whether an outdoor shift is workable or fatal.</p>
+  <p class="muted" style="font-size:8.6pt"><strong>Stated limitation:</strong> the
+  spatial <em>pattern</em> above is derived from measured urban form (OpenStreetMap
+  roads, green cover and water). The <em>magnitude</em> of the urban heat offset is a
+  published literature value of 3.0&nbsp;°C, not a local measurement. The finding
+  survives across the full published range of 2–5&nbsp;°C.</p>
+  <div class="fill"></div>
+  <div class="foot"><span>5 · The resolution problem</span><span>Page 6 of 7</span></div>
+</div>
+
+<!-- ============================== PAGE 7 ============================== -->
+<div class="page">
+  <div class="eyebrow">Sources</div>
+  <h2>References and image credits</h2>
+  <h3>Peer-reviewed</h3>
+  <ul class="refs">
+    <li><span class="tag">[1]</span> Narang, P. &amp; Gadgil, A. (2026). “Estimating
+    heatwave-induced excess mortality in India's districts.” <em>Frontiers in
+    Environmental Health</em>, published 26 May 2026.
+    <code>doi:10.3389/fenvh.2026.1789071</code> — source of the 3,400/day and
+    30,000/five-day modelled figures, the 765-district method, the Uttar Pradesh and
+    district burdens, the 733-vs-360 comparison, and both quoted limitations.</li>
+  </ul>
+  <h3>Contemporary reporting, 2026</h3>
+  <ul class="refs">
+    <li><span class="tag">[2]</span> Symons, A. “Extreme heat causes 3,400 excess
+    deaths per day in India.” <em>Euronews</em>, 10 June 2026 — source of the official
+    500–1,500 annual range and the IMD heatwave definition as quoted.</li>
+    <li><span class="tag">[3]</span> “Heatstroke kills 16 in India as temperatures
+    climb.” <em>Phys.org</em> (AFP), 24 May 2026 — death toll, Telangana, Delhi and
+    IMD forecast.</li>
+    <li><span class="tag">[4]</span> Krishnan, V. “India is being left to die in the
+    heat.” <em>Al Jazeera</em>, 22 May 2026. <strong>Opinion piece</strong> — used only
+    for the factual claims it reports: the Akola reading, the top-50-cities claim, and
+    the timing of the Heat Wave Action Plan.</li>
+  </ul>
+  <h3>2025 season</h3>
+  <ul class="refs">
+    <li><span class="tag">[5]</span> National Centre for Disease Control figures for
+    1 March – 24 June 2025 (7,192 suspected cases, 14 confirmed deaths), and the
+    HeatWatch summer 2025 count of 84 heatstroke deaths, as reported in coverage of
+    India's heat mortality data. Dr Dileep Mavlankar's ten-fold undercount estimate is
+    quoted in the same coverage.</li>
+  </ul>
+  <h3>Images</h3>
+  <ul class="refs">
+    <li><span class="tag">P1</span> “Heatwave across India”, 29 April 2022. European
+    Space Agency. Licence: Attribution (CC BY-SA 3.0 IGO). Via Wikimedia Commons.</li>
+    <li><span class="tag">P2</span> “Heatwave in northwest India”, 12 April 2022.
+    European Union, Copernicus Sentinel-3 imagery, processed by @DEFIS_EU. Licence:
+    Attribution. Via Wikimedia Commons.</li>
+    <li><span class="tag">P3</span> “Land surface temperature of part of India and
+    Pakistan”, 1 May 2022. European Union, Copernicus Sentinel-3 imagery, processed by
+    @DEFIS_EU. Licence: Attribution. Via Wikimedia Commons.</li>
+    <li><span class="tag">P4</span> Figures on pages 4, 5 and 6 were produced by this
+    project from the data cited on each figure.</li>
+  </ul>
+  <div class="pull">
+    <p><strong>On what is not here.</strong> No current-year national death toll is
+    presented as fact, because none could be verified to a primary source; the modelled
+    figures are labelled as modelled throughout. No photograph of an identifiable
+    individual is used. Every image carries its licence.</p>
+  </div>
+  <div class="foot"><span>Sources</span><span>Page 7 of 7</span></div>
+</div>

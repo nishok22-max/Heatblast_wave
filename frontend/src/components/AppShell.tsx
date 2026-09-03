@@ -2,182 +2,156 @@ import type { ReactNode } from "react";
 import type { DatasetKey } from "../data";
 import { DATASET_META } from "../data";
 import type { HeatData } from "../types";
+import type { RoleType } from "./RoleDirectiveCard";
 
-export type ViewKey =
-  | "dashboard"
-  | "map"
-  | "work"
-  | "scenarios"
-  | "findings"
-  | "advisory"
-  | "data";
+interface AppShellProps {
+  data: HeatData;
+  dataset: DatasetKey;
+  onDataset: (k: DatasetKey) => void;
+  role: RoleType;
+  onRole: (r: RoleType) => void;
+  hourLabel: string;
+  stale?: boolean;
+  onOpenCap: () => void;
+  onOpenMethodology: () => void;
+  children: ReactNode;
+}
 
-export const VIEWS: { key: ViewKey; label: string; icon: string; hint: string }[] = [
-  { key: "dashboard", label: "Dashboard", icon: "▦", hint: "Overview" },
-  { key: "map", label: "Heat map", icon: "◈", hint: "Full-screen map" },
-  { key: "work", label: "Work safety", icon: "◷", hint: "Safe hours by person" },
-  { key: "scenarios", label: "What if…", icon: "⇄", hint: "Test interventions" },
-  { key: "findings", label: "Findings", icon: "◲", hint: "What the data shows" },
-  { key: "advisory", label: "Advisory", icon: "◔", hint: "Warning to send" },
-  { key: "data", label: "Data & limits", icon: "◑", hint: "What we know" },
+const ROLES: { key: RoleType; label: string; icon: string }[] = [
+  { key: "commissioner", label: "Commissioner", icon: "🏛️" },
+  { key: "health", label: "Health Officer", icon: "🏥" },
+  { key: "labour", label: "Labour Dept", icon: "⚠️" },
+  { key: "citizen", label: "Citizen / Worker", icon: "👷" },
 ];
 
-/**
- * Application chrome: brand, navigation, dataset switch.
- *
- * Every nav entry leads to real content. There are no placeholder pages — a
- * nav item that opens an empty screen tells a judge more about the project than
- * anything on it.
- */
 export function AppShell({
   data,
   dataset,
   onDataset,
-  view,
-  onView,
+  role,
+  onRole,
   hourLabel,
   stale = false,
+  onOpenCap,
+  onOpenMethodology,
   children,
-}: {
-  data: HeatData;
-  dataset: DatasetKey;
-  onDataset: (k: DatasetKey) => void;
-  view: ViewKey;
-  onView: (v: ViewKey) => void;
-  hourLabel: string;
-  /** A background refresh failed; the numbers shown are the last good ones. */
-  stale?: boolean;
-  children: ReactNode;
-}) {
+}: AppShellProps) {
   const isLive = data.meta.mode === "live";
 
   return (
-    <div className="min-h-full flex flex-col lg:flex-row">
-      {/* ---- Sidebar --------------------------------------------------- */}
-      <aside className="lg:w-56 shrink-0 bg-surface border-b lg:border-b-0 lg:border-r border-line lg:min-h-screen no-print">
-        <div className="px-4 py-4 flex items-center gap-2.5">
-          <span
-            className="w-9 h-9 rounded-xl grid place-items-center text-white text-[17px] shrink-0"
-            style={{
-              background: "linear-gradient(135deg,#f7a23b 0%,#ea6a1e 100%)",
-            }}
-            aria-hidden
-          >
-            ☀
-          </span>
-          <span className="min-w-0">
-            <span className="block text-[15px] font-semibold leading-tight text-ink">
-              HeatLens
-            </span>
-            <span className="block text-[10px] text-ink-faint leading-tight">
-              Human heat decision engine
-            </span>
-          </span>
-        </div>
+    <div className="min-h-screen bg-ground text-ink flex flex-col font-sans selection:bg-accent selection:text-white">
+      {/* Exercise honesty banner */}
+      <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-1 text-center text-[10.5px] font-mono tracking-wider uppercase text-amber-300">
+        Emergency Exercise Prototype · SIH 2026 Problem ID 26083 ·{" "}
+        {isLive ? "Live Forecast Mode (5-day lead time)" : "Replay of May 2010 Disaster (1,344 Fatalities)"}
+      </div>
 
-        <nav aria-label="Sections" className="px-2 pb-3">
-          <ul className="flex lg:flex-col gap-0.5 overflow-x-auto">
-            {VIEWS.map((v) => {
-              const on = view === v.key;
-              return (
-                <li key={v.key} className="shrink-0">
-                  <button
-                    onClick={() => onView(v.key)}
-                    aria-current={on ? "page" : undefined}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${
-                      on
-                        ? "bg-accent text-white"
-                        : "text-ink-soft hover:bg-sunken hover:text-ink"
-                    }`}
-                  >
-                    <span
-                      className={`text-[13px] ${on ? "text-white" : "text-ink-faint"}`}
-                      aria-hidden
-                    >
-                      {v.icon}
-                    </span>
-                    <span className="text-[13px] font-medium whitespace-nowrap">
-                      {v.label}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <div className="hidden lg:block px-4 py-3 mt-auto">
-          <p className="text-[10px] leading-relaxed text-ink-faint">
-            Prototype for the Smart India Hackathon. Not an official product of
-            any government body.
-          </p>
-        </div>
-      </aside>
-
-      {/* ---- Main ------------------------------------------------------ */}
-      <div className="flex-1 min-w-0">
-        {/* Never dismissible. This must not be mistakable for a real service. */}
-        <div className="bg-exercise-bg border-b border-exercise/25 px-4 lg:px-6 py-1.5">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-exercise">
-            Exercise — not an official warning ·{" "}
-            {isLive ? "forecast, not an issued alert" : "replay of a past event"}
-          </p>
-        </div>
-
-        <header className="bg-surface border-b border-line px-4 lg:px-6 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-[19px] font-semibold text-ink leading-tight">
-                {data.meta.city}, Gujarat
-              </h1>
-              <p className="text-[12px] text-ink-soft">
-                {data.meta.focus.date} · {hourLabel} IST ·{" "}
-                {data.meta.n_cells} zones
-                {isLive && data.meta.generated_at_ist && (
-                  <> · forecast retrieved {data.meta.generated_at_ist}</>
-                )}
-                {isLive && stale && (
-                  <span
-                    className="ml-1.5 rounded px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[11px] font-medium"
-                    title="The last refresh did not reach the server. These are the most recent numbers we have."
-                  >
-                    not refreshing
+      {/* Main Command Bar */}
+      <header className="bg-surface border-b border-line sticky top-0 z-40 px-4 lg:px-6 py-2.5 shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Brand & City */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 grid place-items-center text-white text-[16px] shadow-sm font-bold">
+              ☀
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[15px] tracking-tight text-ink">
+                  HeatLens
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 text-accent font-mono font-bold uppercase">
+                  Command Center
+                </span>
+                {isLive && (
+                  <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    LIVE
                   </span>
                 )}
-              </p>
+                {isLive && stale && (
+                  <span className="text-[10px] font-mono text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30">
+                    Reconnecting...
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-ink-soft">
+                {data.meta.city}, Gujarat · 392 Micro-Zones · {hourLabel} IST
+              </span>
             </div>
+          </div>
 
-            <div
-              className="flex gap-1 bg-sunken p-1 rounded-lg no-print"
-              role="tablist"
-              aria-label="Choose which period to view"
-            >
+          {/* Role Persona Switcher */}
+          <div className="flex items-center gap-1 bg-sunken p-1 rounded-xl border border-line">
+            <span className="text-[10px] text-ink-faint px-2 uppercase font-mono tracking-wider hidden sm:inline">
+              Role:
+            </span>
+            {ROLES.map((r) => {
+              const active = role === r.key;
+              return (
+                <button
+                  key={r.key}
+                  onClick={() => onRole(r.key)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                    active
+                      ? "bg-accent text-white shadow-sm font-bold"
+                      : "text-ink-soft hover:text-ink hover:bg-surface/50"
+                  }`}
+                >
+                  <span>{r.icon}</span>
+                  <span>{r.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Dataset Switcher & Modal Triggers */}
+          <div className="flex items-center gap-2">
+            {/* Dataset switch */}
+            <div className="flex bg-sunken p-0.5 rounded-lg border border-line">
               {(Object.keys(DATASET_META) as DatasetKey[]).map((key) => {
-                const on = dataset === key;
+                const active = dataset === key;
                 return (
                   <button
                     key={key}
-                    role="tab"
-                    aria-selected={on}
                     onClick={() => onDataset(key)}
-                    className={`px-3 py-1.5 rounded-md text-left transition-colors ${
-                      on
-                        ? "bg-surface text-ink shadow-sm"
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      active
+                        ? "bg-surface text-ink font-bold shadow-sm"
                         : "text-ink-soft hover:text-ink"
                     }`}
                   >
-                    <span className="block text-[12px] font-medium whitespace-nowrap">
-                      {DATASET_META[key].label}
-                    </span>
+                    {DATASET_META[key].label}
                   </button>
                 );
               })}
             </div>
-          </div>
-        </header>
 
-        <main className="px-4 lg:px-6 py-4">{children}</main>
-      </div>
+            {/* Triggers */}
+            <button
+              onClick={onOpenCap}
+              className="px-2.5 py-1 rounded-lg bg-surface border border-line hover:border-line-strong text-[11px] font-medium text-ink transition-colors flex items-center gap-1"
+              title="View CAP 1.2 XML Alert"
+            >
+              <span>📡</span>
+              <span className="hidden md:inline">Alert XML</span>
+            </button>
+
+            <button
+              onClick={onOpenMethodology}
+              className="px-2.5 py-1 rounded-lg bg-surface border border-line hover:border-line-strong text-[11px] font-medium text-ink transition-colors flex items-center gap-1"
+              title="Methodology & Verification Telemetry"
+            >
+              <span>🔬</span>
+              <span className="hidden md:inline">Methodology</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Canvas */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-6 py-4">
+        {children}
+      </main>
     </div>
   );
 }
