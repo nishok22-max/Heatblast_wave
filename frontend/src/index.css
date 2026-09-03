@@ -1,15 +1,80 @@
 @import "tailwindcss";
 
 /* ============================================================================
-   Design tokens.
-
-   Product-grade console: soft rounded cards on a light ground, generous
-   whitespace, a warm heat-led brand accent. Reads as a tool someone would
-   actually be issued, rather than a government portal or a research notebook.
-
-   Light-mode first: control rooms, projectors and paper are all bright.
+   HEATSHIELD Emergency Heat-Health Intelligence Design System
    ========================================================================= */
 @theme {
+  --color-ground: #F6F4EF;
+  --color-surface: #FFFFFF;
+  --color-sunken: #EFECE6;
+  --color-line: #E2DDD5;
+  --color-line-strong: #D1C9BC;
+
+  /* Structural Warm Charcoal Frame */
+  --color-charcoal: #181816;
+  --color-charcoal-surface: #242320;
+  --color-charcoal-hover: #2E2C28;
+  --color-charcoal-border: #2B2A26;
+
+  /* Structural Dark Slate / Navy Frame */
+  --color-navy: #0F172A;
+  --color-navy-surface: #1E293B;
+  --color-navy-hover: #334155;
+  --color-navy-border: #334155;
+
+  --color-ink: #0F172A;
+  --color-ink-soft: #475569;
+  --color-ink-faint: #64748B;
+
+  /* Primary Brand Accent (Burnt Emergency Orange) */
+  --color-accent: #E0561B;
+  --color-accent-dark: #C2410C;
+  --color-accent-soft: #FFF7ED;
+
+  /* Secondary Accent (Warm Gold / Warning) */
+  --color-gold: #D97706;
+  --color-gold-soft: #FEF3C7;
+
+  /* Environmental Analytics & System Information (Teal/Aqua) */
+  --color-teal: #0D9488;
+  --color-teal-dark: #0F766E;
+  --color-teal-soft: #CCFBF1;
+
+  /* Secondary Cool Accent (Muted Blue) */
+  --color-blue: #2563EB;
+  --color-blue-soft: #EFF6FF;
+
+  /* Elevated Heat & Warning States */
+  --color-brand: #C2410C;
+  --color-brand-soft: #FFEDD5;
+
+  /* Severe / Extreme Danger (Deep Crimson) */
+  --color-flag: #DC2626;
+  --color-flag-bg: #FEF2F2;
+  --color-ok: #16A34A;
+  --color-ok-bg: #F0FDF4;
+
+  /* Exercise simulation indicator */
+  --color-exercise: #9A3412;
+  --color-exercise-bg: #FEF3C7;
+
+  /* Sequential Map Data Ramp (Magma family) */
+  --color-ramp-0: #FFF6E6;
+  --color-ramp-1: #FDDFB0;
+  --color-ramp-2: #FBB97E;
+  --color-ramp-3: #F78F65;
+  --color-ramp-4: #E35D63;
+  --color-ramp-5: #C03D73;
+  --color-ramp-6: #8C2A7C;
+  --color-ramp-7: #4D1471;
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+}
+
+html, body, #root {
+  min-height: 100%;
+}
   --color-ground: #f8fafc;
   --color-surface: #ffffff;
   --color-surface-hover: #f1f5f9;
@@ -66,12 +131,67 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
 /* Numbers in tables and readouts */
 .tnum { font-variant-numeric: tabular-nums; }
 
+/* Premium Card Styles */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 221, 213, 0.8);
+}
+
+/* Accessibility Focus Ring */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-ground);
+}
+::-webkit-scrollbar-thumb {
+  background: #D1C9BC;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A39E93;
+}
+
+/* Subtle Pulse Glow Animation */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(224, 86, 27, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(224, 86, 27, 0);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2.5s infinite;
   border-radius: 12px;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
 }
@@ -92,13 +212,26 @@ body {
   background: transparent;
 }
 
-/* ============================================================================
-   Print — officials print things, and a printable summary is a V1 deliverable.
-   ========================================================================= */
 @media print {
-  @page { margin: 12mm; }
-  body { background: #fff; font-size: 11px; }
-  .no-print { display: none !important; }
-  .print-break { break-before: page; }
-  .card { border: 1px solid #999 !important; box-shadow: none !important; }
+  @page {
+    margin: 12mm;
+  }
+  body {
+    background: #fff;
+    font-size: 11px;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-break {
+    break-before: page;
+  }
+  .card {
+    border: 1px solid #A39E93 !important;
+    box-shadow: none !important;
+  }
 }
+
+
+
+

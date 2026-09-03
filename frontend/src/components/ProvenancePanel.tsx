@@ -2,17 +2,6 @@ import type { HeatData } from "../types";
 import { useState } from "react";
 import { Badge, Panel, statusTone } from "./ui";
 
-/**
- * The honesty panel — and deliberately not a footnote.
- *
- * Every layer declares whether it is measured, assumed, unfitted or
- * uncalibrated. The three non-measured layers are the ones a judge would
- * otherwise have to catch us on; showing them first is both correct and, in a
- * field of dashboards claiming 97% accuracy, the most credible thing on screen.
- *
- * The statuses come from meta.json rather than being written here, so this
- * panel cannot drift away from what the pipeline actually did.
- */
 export function ProvenancePanel({ data }: { data: HeatData }) {
   const [showTechnical, setShowTechnical] = useState(false);
   const flagged = data.meta.provenance.filter(
@@ -21,47 +10,47 @@ export function ProvenancePanel({ data }: { data: HeatData }) {
 
   return (
     <Panel
-      title="What we know, and what we don't"
-      subtitle="Every layer below says whether it was measured or assumed. The flagged ones are the honest gaps."
+      title="DATA PROVENANCE & MODEL TRANSPARENCY"
+      subtitle="Complete declaration of measured vs assumed data layers, standards, and physical caveats"
       right={
-        <div className="text-right">
-          <div className="text-[22px] font-semibold tnum leading-none text-flag">
-            {flagged}
+        <div className="text-right bg-flag-bg border border-flag/30 px-3.5 py-1.5 rounded-xl shadow-2xs">
+          <div className="text-[22px] font-black tnum leading-none text-flag">
+            {flagged} / {data.meta.provenance.length}
           </div>
-          <div className="text-[10px] uppercase tracking-wider text-ink-faint">
-            of 7 layers not measured
+          <div className="text-[10px] uppercase font-black tracking-wider text-flag/90 mt-0.5">
+            layers using proxy data
           </div>
         </div>
       }
     >
-      <div className="overflow-x-auto">
-        <table className="w-full text-[12px] border-collapse">
+      <div className="overflow-x-auto rounded-xl border border-line shadow-2xs">
+        <table className="w-full text-[12px] border-collapse bg-surface">
           <thead>
-            <tr className="text-[10px] uppercase tracking-wider text-ink-faint">
-              <th className="text-left font-semibold pb-1.5 pr-3">Layer</th>
-              <th className="text-left font-semibold pb-1.5 pr-3">Source</th>
-              <th className="text-left font-semibold pb-1.5 pr-3">Resolution</th>
-              <th className="text-left font-semibold pb-1.5">Status</th>
+            <tr className="bg-sunken/60 text-[10px] uppercase font-black tracking-wider text-ink-faint border-b border-line">
+              <th className="text-left py-3 px-3.5">Data Layer</th>
+              <th className="text-left py-3 px-3.5">Primary Source</th>
+              <th className="text-left py-3 px-3.5">Spatial / Temporal Resolution</th>
+              <th className="text-left py-3 px-3.5">Verification Status</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-line/60">
             {data.meta.provenance.map((p) => {
               const tone = statusTone(p.status);
               return (
-                <tr key={p.layer} className="border-t border-line/70 align-top">
-                  <td className="py-1.5 pr-3">
-                    <div className="text-ink font-medium">{p.plain ?? p.layer}</div>
-                    <div className="text-[10px] text-ink-faint capitalize">
+                <tr key={p.layer} className="hover:bg-sunken/20 transition-colors align-top">
+                  <td className="py-2.5 px-3.5">
+                    <div className="text-ink font-extrabold">{p.plain ?? p.layer}</div>
+                    <div className="text-[10px] font-mono text-ink-faint font-semibold">
                       {p.layer}
                     </div>
                   </td>
-                  <td className="py-1.5 pr-3 text-ink-soft">{p.source}</td>
-                  <td className="py-1.5 pr-3 text-ink-faint tnum whitespace-nowrap">
+                  <td className="py-2.5 px-3.5 text-ink-soft font-semibold">{p.source}</td>
+                  <td className="py-2.5 px-3.5 text-ink-faint tnum font-semibold whitespace-nowrap">
                     {p.resolution}
                   </td>
-                  <td className="py-1.5">
+                  <td className="py-2.5 px-3.5">
                     <Badge tone={tone}>{plainStatus(p.status)}</Badge>
-                    <div className="text-[10px] text-ink-faint mt-0.5 max-w-48">
+                    <div className="text-[10px] text-ink-faint mt-1 max-w-56 font-mono leading-tight">
                       {p.status}
                     </div>
                   </td>
@@ -72,58 +61,54 @@ export function ProvenancePanel({ data }: { data: HeatData }) {
         </table>
       </div>
 
-      <div className="mt-4 pt-3 border-t border-line">
-        <div className="flex items-baseline justify-between gap-3 mb-1.5">
-          <h3 className="text-[10px] uppercase tracking-wider font-semibold text-ink-soft">
-            Things this tool cannot yet tell you
+      <div className="mt-5 pt-4 border-t border-line">
+        <div className="flex items-center justify-between gap-3 mb-2.5">
+          <h3 className="text-[11px] uppercase font-black tracking-wider text-ink-faint">
+            Model Limitations & Known Physical Caveats
           </h3>
           <button
             onClick={() => setShowTechnical((v) => !v)}
             aria-expanded={showTechnical}
-            className="no-print text-[11px] text-accent underline shrink-0"
+            className="no-print text-[12px] font-extrabold text-accent hover:underline shrink-0"
           >
-            {showTechnical ? "Hide" : "Show"} technical wording
+            {showTechnical ? "▲ Hide Technical Details" : "▼ Show Technical Details"}
           </button>
         </div>
-        <ul className="space-y-2">
+        <div className="grid sm:grid-cols-2 gap-2.5">
           {data.meta.caveats.map((c) => (
-            <li key={c.technical} className="flex gap-2 text-[12px] leading-relaxed">
-              <span className="text-flag shrink-0" aria-hidden>
-                ▸
-              </span>
-              <span>
-                <span className="text-ink">{c.plain}</span>
-                {showTechnical && (
-                  <span className="block text-[11px] text-ink-faint mt-0.5">
-                    {c.technical}
-                  </span>
-                )}
-              </span>
-            </li>
+            <div key={c.technical} className="p-3.5 bg-sunken/40 border border-line/60 rounded-xl text-[12px]">
+              <div className="flex items-start gap-2">
+                <span className="text-flag font-black text-[15px] shrink-0">⚠️</span>
+                <div>
+                  <span className="text-ink font-bold block leading-snug">{c.plain}</span>
+                  {showTechnical && (
+                    <span className="block text-[11px] text-ink-faint mt-1.5 font-mono bg-surface p-2 rounded-lg border border-line">
+                      {c.technical}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
 
-      <div className="mt-4 pt-3 border-t border-line grid grid-cols-2 gap-x-6 gap-y-1 text-[11px]">
-        <div className="col-span-2 text-[10px] uppercase tracking-wider font-semibold text-ink-soft">
-          How heat is turned into a health number
+      <div className="mt-5 pt-4 border-t border-line bg-sunken/30 p-4 rounded-xl border border-line/60 grid grid-cols-2 gap-x-6 gap-y-2 text-[12px]">
+        <div className="col-span-2 text-[11px] uppercase font-black tracking-wider text-ink-faint mb-1">
+          Exposure-Response Function Calibration Parameters
         </div>
-        <span className="text-ink-soft">Metric / threshold</span>
-        <span className="text-ink tnum text-right">
-          {data.meta.exposure_response.metric.toUpperCase()} ·{" "}
-          {data.meta.exposure_response.mmt_c} °C
+        <span className="text-ink-soft font-semibold">Target Metric & MMT Baseline:</span>
+        <span className="text-ink font-black tnum text-right">
+          {data.meta.exposure_response.metric.toUpperCase()} · MMT = {data.meta.exposure_response.mmt_c} °C
         </span>
-        <span className="text-ink-soft">Slope (95% range)</span>
-        <span className="text-ink tnum text-right">
-          {data.meta.exposure_response.beta} (
-          {data.meta.exposure_response.beta_ci.join(" – ")})
+        <span className="text-ink-soft font-semibold">Slope Coefficient (Beta 95% CI):</span>
+        <span className="text-ink font-black tnum text-right">
+          {data.meta.exposure_response.beta} ({data.meta.exposure_response.beta_ci.join(" – ")})
         </span>
-        <span className="text-ink-soft">
-          Checked against real local health records
-        </span>
+        <span className="text-ink-soft font-semibold">Local Hospital Calibration:</span>
         <span className="text-right">
           <Badge tone={data.meta.exposure_response.is_calibrated ? "ok" : "flag"}>
-            {data.meta.exposure_response.is_calibrated ? "yes" : "no"}
+            {data.meta.exposure_response.is_calibrated ? "Calibrated against local data" : "Uncalibrated placeholder"}
           </Badge>
         </span>
       </div>
@@ -131,20 +116,13 @@ export function ProvenancePanel({ data }: { data: HeatData }) {
   );
 }
 
-/**
- * Plain-language equivalent of a provenance status.
- *
- * The technical string still renders underneath, so nothing is hidden — but
- * "NOT FITTED -- exposure proxied by urban intensity" tells a non-specialist
- * nothing, and this panel is the one place the project cannot afford to be
- * unreadable.
- */
 function plainStatus(status: string): string {
   const s = status.toLowerCase();
   if (s.startsWith("measured")) return "Measured";
   if (s.startsWith("published")) return "Published standard";
   if (s.includes("not calibrated")) return "Not checked locally";
-  if (s.includes("not fitted")) return "Stand-in, not real data";
-  if (s.includes("assumed")) return "Assumed, not measured";
+  if (s.includes("not fitted")) return "Stand-in proxy";
+  if (s.includes("assumed")) return "Assumed parameter";
   return status;
 }
+

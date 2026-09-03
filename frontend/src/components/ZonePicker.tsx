@@ -2,18 +2,6 @@ import { useMemo } from "react";
 import type { HeatData, MetricKey } from "../types";
 import { METRICS, formatValue } from "../metrics";
 
-/**
- * Find-your-neighbourhood control.
- *
- * Without this, the only way to inspect a zone is to guess which hexagon it is
- * and click it — which assumes the viewer can already locate their area on an
- * unlabelled grid. Most people cannot, and the ones who most need this tool are
- * the least likely to be able to.
- *
- * A native <select> on purpose: keyboard accessible, screen-reader friendly, and
- * on a phone it opens the OS picker with type-to-search built in. A custom
- * combobox would look better and work worse.
- */
 export function ZonePicker({
   data,
   metric,
@@ -29,11 +17,6 @@ export function ZonePicker({
 }) {
   const def = METRICS[metric];
 
-  /** name -> the worst-affected zone carrying that name, at this hour.
-   *
-   *  Several hexagons share a name, so picking one has to be deliberate rather
-   *  than arbitrary. We surface the hottest, because someone looking up their
-   *  own area wants the worst case there, not a random sample of it. */
   const options = useMemo(() => {
     const byName = new Map<string, { h3: string; value: number }>();
     for (const f of data.hexes.features) {
@@ -58,33 +41,49 @@ export function ZonePicker({
       ?.properties.place ?? "";
 
   return (
-    <div className="mt-4">
+    <div className="mt-1 space-y-2">
       <label
         htmlFor="zone-picker"
-        className="block text-[10px] uppercase tracking-wider font-semibold text-ink-soft mb-2"
+        className="block text-[10px] uppercase tracking-wider font-black text-ink-faint"
       >
-        Find a neighbourhood
+        Select a Neighbourhood Zone ({options.length} locations)
       </label>
-      <select
-        id="zone-picker"
-        value={selectedName}
-        onChange={(e) => {
-          const hit = options.find((o) => o.name === e.target.value);
-          if (hit) onSelect(hit.h3);
-        }}
-        className="w-full bg-surface border border-line rounded-[2px] px-2 py-1.5 text-[12px] text-ink hover:border-line-strong"
-      >
-        <option value="">Choose an area…</option>
-        {options.map((o) => (
-          <option key={o.name} value={o.name}>
-            {o.name} — {formatValue(o.value, def)}
-          </option>
-        ))}
-      </select>
-      <p className="text-[11px] leading-relaxed text-ink-faint mt-1.5">
-        {options.length} named areas, from OpenStreetMap. Names label the nearest
-        recognised place — they are not official ward boundaries.
+      <div className="relative">
+        <select
+          id="zone-picker"
+          value={selectedName}
+          onChange={(e) => {
+            const hit = options.find((o) => o.name === e.target.value);
+            if (hit) onSelect(hit.h3);
+          }}
+          className="w-full bg-surface border border-line-strong/60 rounded-xl px-3.5 py-2.5 text-[13px] text-ink font-bold hover:border-accent focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all cursor-pointer shadow-2xs"
+        >
+          <option value="">Choose an area from the list…</option>
+          {options.map((o) => (
+            <option key={o.name} value={o.name}>
+              {o.name} — {formatValue(o.value, def)} ({def.short})
+            </option>
+          ))}
+        </select>
+      </div>
+      {selected && (
+        <div className="pt-2 border-t border-line/60 flex items-center justify-between">
+          <span className="text-[11px] text-ink-soft font-semibold">Selected: <strong className="text-ink font-black">{selectedName}</strong></span>
+          <button
+            onClick={() => onSelect(selected)}
+            className="text-[12px] font-black text-accent hover:underline flex items-center gap-1"
+          >
+            <span>Focus Ward Risk</span>
+            <span>→</span>
+          </button>
+        </div>
+      )}
+      <p className="text-[11px] leading-relaxed text-ink-faint font-medium">
+        Landmark locations derived from OpenStreetMap. Selecting an area focuses its highest-reading H3 zone at this hour.
       </p>
     </div>
   );
 }
+
+
+

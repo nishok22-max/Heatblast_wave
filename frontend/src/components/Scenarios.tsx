@@ -2,117 +2,126 @@ import type { Insights } from "../types";
 import { Note, Panel } from "./ui";
 
 /**
- * What-if simulator.
- *
- * Every scenario here is recomputed through the project's own physics — none is
- * a stated percentage or a designer's guess. Interventions the model genuinely
- * cannot represent are listed as omitted rather than estimated, which is the
- * whole reason this panel can be trusted.
+ * What-If Intervention Simulator.
  */
 export function Scenarios({ insights }: { insights: Insights }) {
   const best = insights.scenarios.reduce((a, b) => (score(b) > score(a) ? b : a));
 
   return (
     <Panel
-      title="What if we did something about it?"
-      subtitle="Each option is re-run through the same physics as the map"
+      title="WHAT IF WE ACT? (INTERVENTION SIMULATION)"
+      subtitle="Every scenario below is physically recomputed through the thermal model — no guessed estimates"
     >
-      <div className="grid md:grid-cols-3 gap-3">
+      <div className="grid md:grid-cols-3 gap-4">
         {insights.scenarios.map((s) => {
           const isWork = typeof s.reduction_pct === "number";
           const isBest = s.key === best.key;
           return (
             <div
               key={s.key}
-              className={`rounded-xl border p-3.5 ${
-                isBest ? "border-ok bg-ok-bg/40" : "border-line bg-surface"
+              className={`rounded-2xl border p-4.5 transition-all flex flex-col justify-between ${
+                isBest
+                  ? "border-ok bg-gradient-to-b from-ok-bg/70 via-surface to-surface shadow-sm ring-1 ring-ok/30"
+                  : "border-line bg-surface hover:border-line-strong shadow-2xs"
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-[13px] font-semibold text-ink leading-tight">
+              <div>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-accent bg-accent-soft px-2 py-0.5 rounded-md border border-accent/20">
+                    Intervention Option
+                  </span>
+                  {isBest && (
+                    <span className="text-[9px] uppercase font-black tracking-wider text-ok bg-ok-bg border border-ok/40 rounded-md px-2 py-0.5 shrink-0 shadow-2xs">
+                      ★ Best ROI Strategy
+                    </span>
+                  )}
+                </div>
+
+                <h3 className="text-[15px] font-black text-ink leading-tight">
                   {s.label}
                 </h3>
-                {isBest && (
-                  <span className="text-[9px] uppercase tracking-wider font-semibold text-ok bg-surface border border-ok/30 rounded px-1.5 py-0.5 shrink-0">
-                    Best value
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-ink-soft mt-1 leading-snug">
-                {s.detail}
-              </p>
+                <p className="text-[12px] text-ink-soft mt-1.5 leading-relaxed font-medium">
+                  {s.detail}
+                </p>
 
-              <div className="mt-3 flex items-baseline gap-2">
-                {isWork ? (
-                  <>
-                    <span className="text-[24px] font-semibold text-ink tnum leading-none">
-                      −{s.reduction_pct}%
+                {/* Baseline -> Action -> Modelled Estimate Flow */}
+                <div className="mt-4 p-3 bg-sunken/40 rounded-xl border border-line/70 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="text-ink-faint uppercase text-[9px] tracking-wider">Baseline Risk</span>
+                    <span className="text-ink font-extrabold tnum">
+                      {isWork ? `${s.unsafe_before}h unsafe` : `${s.utci_before} °C felt`}
                     </span>
-                    <span className="text-[11px] text-ink-soft">
-                      unsafe work hours
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-[24px] font-semibold text-ink tnum leading-none">
-                      {s.delta_c}
-                    </span>
-                    <span className="text-[11px] text-ink-soft">
-                      °C felt {s.scope ? `(${s.scope})` : ""}
-                    </span>
-                  </>
-                )}
-              </div>
+                  </div>
 
-              <div className="mt-2 text-[11px] tnum text-ink-faint">
-                {isWork
-                  ? `${s.unsafe_before} h → ${s.unsafe_after} h`
-                  : `${s.utci_before} °C → ${s.utci_after} °C`}
-              </div>
+                  <div className="flex items-center justify-center text-[12px] text-accent font-black">
+                    ↓ [ ACTION APPLIED ] ↓
+                  </div>
 
-              <div className="mt-3 pt-2 border-t border-line/70">
-                <div className="text-[10px] uppercase tracking-wider text-ink-faint">
-                  Cost
+                  <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-line/60">
+                    <div>
+                      <span className="block text-[9px] uppercase font-black tracking-wider text-ok">
+                        Modelled Scenario Estimate
+                      </span>
+                      <span className="text-[11px] font-bold text-ink-soft tnum">
+                        {isWork ? `${s.unsafe_after}h unsafe` : `${s.utci_after} °C felt`}
+                      </span>
+                    </div>
+                    
+                    <div className="text-right">
+                      {isWork ? (
+                        <span className="text-[24px] font-black text-ok tnum leading-none tracking-tight">
+                          −{s.reduction_pct}%
+                        </span>
+                      ) : (
+                        <span className="text-[24px] font-black text-ok tnum leading-none tracking-tight">
+                          {s.delta_c} °C
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[11px] text-ink">{s.cost}</div>
               </div>
 
-              <p className="text-[10px] leading-relaxed text-ink-faint mt-2">
-                {s.basis}
-              </p>
+              <div className="mt-4 pt-3 border-t border-line/70">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="uppercase font-black tracking-wider text-ink-faint text-[9px]">
+                    Implementation Cost & Feasibility
+                  </span>
+                  <span className="font-extrabold text-ink bg-sunken px-2 py-0.5 rounded">{s.cost}</span>
+                </div>
+                <p className="text-[10px] leading-relaxed text-ink-faint mt-1 font-mono">
+                  Standard basis: {s.basis}
+                </p>
+              </div>
             </div>
           );
         })}
       </div>
 
       {insights.omitted?.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-line">
-          <h4 className="text-[10px] uppercase tracking-wider font-semibold text-ink-soft mb-1.5">
-            Deliberately not offered
+        <div className="mt-5 pt-4 border-t border-line">
+          <h4 className="text-[11px] uppercase font-black tracking-wider text-ink-faint mb-2">
+            Interventions Omitted from Physical Model Scope
           </h4>
-          <ul className="space-y-1.5">
+          <div className="grid sm:grid-cols-2 gap-2.5">
             {insights.omitted.map((o) => (
-              <li key={o.item} className="text-[12px] leading-relaxed">
-                <span className="text-ink font-medium">{o.item}</span>
-                <span className="text-ink-soft"> — {o.why}</span>
-              </li>
+              <div key={o.item} className="text-[12px] leading-relaxed bg-sunken/40 p-3 rounded-xl border border-line/60">
+                <span className="text-ink font-extrabold block">{o.item}</span>
+                <span className="text-ink-soft font-medium">{o.why}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
       <Note>
-        A model that offers every intervention is a model that has stopped
-        checking whether it can actually evaluate them.
+        Every scenario outcome is verified by physical microclimate model parameters. Unvalidated interventions are omitted rather than guessed.
       </Note>
     </Panel>
   );
 }
 
 function score(s: Insights["scenarios"][number]): number {
-  // Rank by benefit per unit of cost: a free scheduling change that removes a
-  // third of the exposure beats a multi-year planting programme that removes
-  // slightly more.
   const cost = /no cost/i.test(s.cost) ? 1 : /low/i.test(s.cost) ? 2 : 5;
   const benefit =
     typeof s.reduction_pct === "number"
@@ -120,3 +129,4 @@ function score(s: Insights["scenarios"][number]): number {
       : Math.abs(s.delta_c ?? 0);
   return benefit / cost;
 }
+

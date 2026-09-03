@@ -15,23 +15,21 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section
-      className={`card ${className}`}
-    >
-      <header className="flex items-start justify-between gap-4 px-4 py-3 border-b border-line">
-        <div className="min-w-0">
-          <h2 className="text-[14px] font-semibold text-ink">
+    <section className={`card overflow-hidden ${className}`}>
+      <header className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-line/80 bg-surface/60">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[15px] font-black text-ink leading-tight tracking-tight uppercase">
             {title}
           </h2>
           {subtitle && (
-            <p className="text-[12px] text-ink-soft mt-0.5 leading-snug">
+            <p className="text-[12px] text-ink-soft mt-0.5 leading-snug font-medium">
               {subtitle}
             </p>
           )}
         </div>
         {right && <div className="shrink-0 no-print">{right}</div>}
       </header>
-      <div className="p-4">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }
@@ -39,11 +37,11 @@ export function Panel({
 type Tone = "neutral" | "ok" | "warn" | "flag" | "accent";
 
 const TONES: Record<Tone, string> = {
-  neutral: "bg-sunken text-ink-soft border-line",
-  ok: "bg-ok-bg text-ok border-ok/30",
-  warn: "bg-exercise-bg text-exercise border-exercise/30",
-  flag: "bg-flag-bg text-flag border-flag/30",
-  accent: "bg-accent-soft text-accent border-accent/25",
+  neutral: "bg-sunken text-ink-soft border-line-strong/60 font-bold",
+  ok: "bg-ok-bg text-ok border-ok/30 font-black",
+  warn: "bg-exercise-bg text-exercise border-exercise/30 font-black",
+  flag: "bg-flag-bg text-flag border-flag/30 font-black",
+  accent: "bg-accent-soft text-accent border-accent/25 font-black",
 };
 
 export function Badge({
@@ -58,7 +56,7 @@ export function Badge({
   return (
     <span
       title={title}
-      className={`inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider border rounded-[2px] ${TONES[tone]}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] uppercase tracking-wider border rounded-lg shadow-2xs ${TONES[tone]}`}
     >
       {children}
     </span>
@@ -67,10 +65,6 @@ export function Badge({
 
 /**
  * Maps a provenance `status` string to a visual tone.
- *
- * Anything that is not plainly measured or a published standard is surfaced as
- * a flag. This is deliberately fail-loud: a new status value nobody styled
- * shows up as a warning rather than quietly rendering as "fine".
  */
 export function statusTone(status: string): Tone {
   const s = status.toLowerCase();
@@ -92,17 +86,22 @@ export function Row({
   hint?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-1 border-b border-line/60 last:border-0">
-      <span className="text-[12px] text-ink-soft" title={hint}>
+    <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-line/60 last:border-0 hover:bg-sunken/30 px-2 rounded-lg transition-colors">
+      <span className="text-[12px] text-ink-soft font-medium" title={hint}>
         {label}
       </span>
-      <span className="text-[13px] font-medium tnum text-ink">{value}</span>
+      <span className="text-[13px] font-extrabold tnum text-ink">{value}</span>
     </div>
   );
 }
 
 export function Note({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[11px] leading-relaxed text-ink-faint mt-2">{children}</p>
+    <p className="text-[11px] leading-relaxed text-ink-faint mt-2.5 flex items-start gap-1.5 font-medium">
+      <span className="shrink-0 text-[11px] font-bold text-accent">ℹ</span>
+      <span>{children}</span>
+    </p>
   );
 }
+
+

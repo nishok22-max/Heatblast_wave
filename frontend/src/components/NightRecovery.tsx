@@ -12,17 +12,6 @@ import {
 import type { HeatData } from "../types";
 import { Note, Panel } from "./ui";
 
-/**
- * Hero panel 2 — the night-recovery finding.
- *
- * A heatwave warning describes the afternoon. It says nothing about whether
- * anyone got to cool down overnight, which across the May 2010 event is what
- * actually accumulated.
- */
-
-/** Above this overnight minimum, sleep provides little physiological recovery.
- *  Indicative, drawn from heat-health guidance on night-time minima rather than
- *  from a single definitive threshold — shown as a reference, not a verdict. */
 const RECOVERY_THRESHOLD_C = 27;
 
 export function NightRecovery({ data }: { data: HeatData }) {
@@ -38,32 +27,32 @@ export function NightRecovery({ data }: { data: HeatData }) {
 
   return (
     <Panel
-      title="Night-time recovery"
-      subtitle="Coolest air temperature between 22:00 and 06:00 IST, each night of the event"
+      title="NIGHT-TIME COOLING RECOVERY DEFICIT"
+      subtitle="Overnight minimum air temperature (22:00 – 06:00 IST) across event nights"
       right={
-        <div className="text-right">
-          <div className="text-[22px] font-semibold tnum leading-none text-ink">
+        <div className="text-right bg-flag-bg border border-flag/30 px-3.5 py-1.5 rounded-xl shadow-2xs">
+          <div className="text-[22px] font-black tnum leading-none text-flag">
             {noRecovery}
           </div>
-          <div className="text-[10px] uppercase tracking-wider text-ink-faint">
-            nights without recovery
+          <div className="text-[10px] uppercase font-black tracking-wider text-flag/90 mt-0.5">
+            nights without cooling
           </div>
         </div>
       }
     >
-      <div className="h-56">
+      <div className="h-64 bg-surface p-3 rounded-xl border border-line shadow-2xs">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chart} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
-            <CartesianGrid stroke="#e2e0da" vertical={false} />
+          <BarChart data={chart} margin={{ top: 10, right: 12, left: -16, bottom: 4 }}>
+            <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: "#85817a" }}
-              axisLine={{ stroke: "#d6d3cc" }}
+              tick={{ fontSize: 11, fill: "#475569", fontWeight: 700 }}
+              axisLine={{ stroke: "#cbd5e1" }}
               tickLine={false}
             />
             <YAxis
               domain={[24, 32]}
-              tick={{ fontSize: 11, fill: "#85817a" }}
+              tick={{ fontSize: 11, fill: "#475569", fontWeight: 700 }}
               axisLine={false}
               tickLine={false}
               unit="°"
@@ -71,23 +60,27 @@ export function NightRecovery({ data }: { data: HeatData }) {
             <Tooltip
               contentStyle={{
                 fontSize: 12,
-                border: "1px solid #d6d3cc",
-                borderRadius: 2,
+                borderRadius: 12,
+                border: "1px solid #cbd5e1",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                fontWeight: 700,
               }}
-              formatter={(v) => [`${Number(v).toFixed(1)} °C`, "overnight min"]}
+              formatter={(v) => [`${Number(v).toFixed(1)} °C`, "Overnight Min"]}
             />
             <ReferenceLine
               y={RECOVERY_THRESHOLD_C}
-              stroke="#8a3324"
+              stroke="#dc2626"
               strokeDasharray="4 3"
+              strokeWidth={2}
               label={{
-                value: `recovery threshold ${RECOVERY_THRESHOLD_C}°C`,
+                value: `Recovery threshold ${RECOVERY_THRESHOLD_C} °C`,
                 position: "insideTopLeft",
-                fontSize: 10,
-                fill: "#8a3324",
+                fontSize: 11,
+                fill: "#dc2626",
+                fontWeight: 800,
               }}
             />
-            <Bar dataKey="min_c" radius={[2, 2, 0, 0]}>
+            <Bar dataKey="min_c" radius={[6, 6, 0, 0]}>
               {chart.map((d) => (
                 <Cell
                   key={d.date}
@@ -105,25 +98,17 @@ export function NightRecovery({ data }: { data: HeatData }) {
         </ResponsiveContainer>
       </div>
 
-      <p className="mt-3 text-[12px] leading-relaxed text-ink-soft">
-        Across this event the overnight minimum never fell below{" "}
-        <strong className="text-ink tnum">
-          {Math.min(...nights.map((n) => n.min_c)).toFixed(1)} °C
-        </strong>
-        , peaking at{" "}
-        <strong className="text-ink tnum">{worst.min_c.toFixed(1)} °C</strong> on{" "}
-        {worst.date}. Heat load accumulates across days when the body never gets
-        a cool night to shed it —{" "}
-        <strong className="text-ink">
-          and a daytime-maximum warning is blind to this entirely.
-        </strong>
-      </p>
+      <div className="mt-4 p-3.5 bg-flag-bg/70 border border-flag/30 rounded-xl shadow-2xs">
+        <p className="text-[12px] leading-relaxed text-ink font-medium">
+          Overnight minima never dropped below <strong className="text-flag font-black tnum">{Math.min(...nights.map((n) => n.min_c)).toFixed(1)} °C</strong>, reaching <strong className="text-flag font-black tnum">{worst.min_c.toFixed(1)} °C</strong> on {worst.date}. Cumulative physiological heat strain builds when human bodies cannot shed thermal load overnight.
+        </p>
+      </div>
 
       <Note>
-        City-mean air temperature from ERA5. Indoor temperatures in metal- and
-        asbestos-roofed housing run higher and decay more slowly; modelling that
-        by roof typology is the highest-value item in the production plan.
+        Data source: ERA5 city-mean air temperature. High thermal mass housing (metal/asbestos roofs) retains heat longer into the night.
       </Note>
     </Panel>
   );
 }
+
+
