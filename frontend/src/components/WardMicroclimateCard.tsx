@@ -15,13 +15,13 @@ export function WardMicroclimateCard({
 }: WardMicroclimateCardProps) {
   if (!selectedH3) {
     return (
-      <div className="card p-4 space-y-2 border-dashed">
+      <div className="card p-4 space-y-1.5 border-dashed bg-slate-50/50 border-slate-300/70">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-[13px] text-ink">Ward Microclimate Drill-Down</h3>
-          <span className="text-[10px] text-accent font-mono">MAP SELECTION</span>
+          <span className="text-[10px] text-ink-faint font-mono uppercase">Map Inspection</span>
         </div>
         <p className="text-[12px] text-ink-soft leading-relaxed">
-          Click any hexagonal zone on the map or use landmark search to inspect street-level microclimate data, local urban heat island delta, and ward-specific safe working limits.
+          Select any hexagonal micro-zone on the map or search by landmark to inspect street-level temperature deviations, surface properties, and localized work limits.
         </p>
       </div>
     );
@@ -38,69 +38,68 @@ export function WardMicroclimateCard({
   const ta = cellData?.air_temp?.[hour] ?? 0;
 
   return (
-    <div className="card p-4 space-y-3 border-accent/40 shadow-lg">
-      <div className="flex items-center justify-between border-b border-line pb-2.5">
+    <div className="card p-4 space-y-3 bg-surface border-sky-300 shadow-sm">
+      <div className="flex items-center justify-between border-b border-line pb-2">
         <div>
           <div className="flex items-center gap-1.5">
             <h3 className="font-bold text-[14px] text-ink">{placeName}</h3>
             {props?.place_exact && (
-              <span className="text-[9px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">
-                VERIFIED LANDMARK
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-50 text-sky-700 border border-sky-200 font-mono font-medium">
+                Verified Node
               </span>
             )}
           </div>
-          <span className="text-[10px] font-mono text-ink-faint">
-            H3: {selectedH3}
+          <span className="text-[10.5px] font-mono text-ink-faint">
+            Index: {selectedH3}
           </span>
         </div>
         <button
           onClick={onClear}
-          className="text-[11px] text-ink-soft hover:text-ink px-2 py-0.5 rounded hover:bg-surface border border-line"
+          className="text-[11px] text-ink-soft hover:text-ink px-2 py-0.5 rounded hover:bg-slate-100 border border-slate-200 transition-colors"
         >
-          ✕ Clear
+          Clear
         </button>
       </div>
 
       <div className="grid grid-cols-4 gap-1.5 text-center">
-        <div className="p-1.5 rounded bg-sunken border border-line">
-          <span className="text-[9px] text-ink-faint block">Air Temp</span>
-          <span className="font-mono font-bold text-[12px] text-amber-400">
+        <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
+          <span className="text-[9px] text-ink-faint block uppercase font-medium">Air Temp</span>
+          <span className="font-mono font-bold text-[12px] text-amber-700">
             {ta.toFixed(1)} °C
           </span>
         </div>
-        <div className="p-1.5 rounded bg-sunken border border-line">
-          <span className="text-[9px] text-ink-faint block">Local UTCI</span>
-          <span className="font-mono font-bold text-[12px] text-red-400">
+        <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
+          <span className="text-[9px] text-ink-faint block uppercase font-medium">Local UTCI</span>
+          <span className="font-mono font-bold text-[12px] text-red-600">
             {utci.toFixed(1)} °C
           </span>
         </div>
-        <div className="p-1.5 rounded bg-sunken border border-line">
-          <span className="text-[9px] text-ink-faint block">Local WBGT</span>
-          <span className="font-mono font-bold text-[12px] text-pink-400">
+        <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
+          <span className="text-[9px] text-ink-faint block uppercase font-medium">Local WBGT</span>
+          <span className="font-mono font-bold text-[12px] text-rose-700">
             {wbgt.toFixed(1)} °C
           </span>
         </div>
-        <div className="p-1.5 rounded bg-sunken border border-line">
-          <span className="text-[9px] text-ink-faint block">UHI Delta</span>
-          <span className="font-mono font-bold text-[12px] text-accent">
+        <div className="p-1.5 rounded bg-slate-50 border border-slate-200">
+          <span className="text-[9px] text-ink-faint block uppercase font-medium">UHI Delta</span>
+          <span className="font-mono font-bold text-[12px] text-sky-700">
             {uhiDelta >= 0 ? `+${uhiDelta.toFixed(1)} °C` : `${uhiDelta.toFixed(1)} °C`}
           </span>
         </div>
       </div>
 
-      {/* Surface morphology */}
-      <div className="space-y-1 text-[11px] pt-1 border-t border-line/60">
+      <div className="space-y-1 text-[11.5px] pt-1.5 border-t border-line">
         <div className="flex justify-between text-ink-soft">
           <span>Road Surface Perviousness:</span>
-          <span className="font-mono text-ink">{((props?.roads ?? 0) * 100).toFixed(0)}%</span>
+          <span className="font-mono font-medium text-ink">{((props?.roads ?? 0) * 100).toFixed(0)}%</span>
         </div>
         <div className="flex justify-between text-ink-soft">
-          <span>Canopy & Green Cover:</span>
-          <span className="font-mono text-ink">{((props?.green ?? 0) * 100).toFixed(0)}%</span>
+          <span>Vegetative Canopy Cover:</span>
+          <span className="font-mono font-medium text-ink">{((props?.green ?? 0) * 100).toFixed(0)}%</span>
         </div>
         <div className="flex justify-between text-ink-soft">
-          <span>Water Proximity:</span>
-          <span className="font-mono text-ink">{((props?.water ?? 0) * 100).toFixed(0)}%</span>
+          <span>Water Surface Proximity:</span>
+          <span className="font-mono font-medium text-ink">{((props?.water ?? 0) * 100).toFixed(0)}%</span>
         </div>
       </div>
     </div>

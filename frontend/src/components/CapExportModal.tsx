@@ -30,47 +30,44 @@ export function CapExportModal({ isOpen, onClose, data }: CapExportModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="card w-full max-w-2xl bg-surface border-line-strong p-5 space-y-4 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+      <div className="card w-full max-w-2xl bg-white border border-slate-300 p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between border-b border-line pb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">📡</span>
-            <div>
-              <h2 className="font-bold text-[16px] text-ink">Common Alerting Protocol (CAP 1.2) Payload</h2>
-              <p className="text-[12px] text-ink-soft">
-                Standard OASIS XML format ready for NDMA SACHET & national warning gateways
-              </p>
-            </div>
+          <div>
+            <h2 className="font-bold text-[15px] text-ink">Common Alerting Protocol (CAP 1.2) Payload</h2>
+            <p className="text-[11.5px] text-ink-soft">
+              Standard OASIS XML format ready for NDMA SACHET and state emergency gateways
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="text-ink-soft hover:text-ink px-2 py-1 rounded-md text-[18px]"
+            className="text-ink-soft hover:text-ink px-2 py-1 rounded-md text-[16px]"
             aria-label="Close"
           >
             ✕
           </button>
         </div>
 
-        <div className="bg-sunken p-3 rounded-lg border border-line overflow-auto max-h-[360px]">
-          <pre className="font-mono text-[11px] text-cyan-300 whitespace-pre-wrap leading-relaxed">
+        <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 overflow-auto max-h-[360px]">
+          <pre className="font-mono text-[11px] text-slate-800 whitespace-pre-wrap leading-relaxed">
             {xml}
           </pre>
         </div>
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between pt-1">
           <span className="text-[11px] text-ink-faint">
-            Verified compliant with NDMA Integrated Emergency Alert System
+            Compliant with NDMA National Disaster Management Authority specifications
           </span>
           <div className="flex gap-2">
             <button
               onClick={handleCopy}
-              className="px-3 py-1.5 rounded-lg bg-surface border border-line hover:border-line-strong text-ink text-[12px] font-medium transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-surface border border-line hover:bg-slate-50 text-ink text-[11.5px] font-medium transition-colors"
             >
-              {copied ? "✓ Copied to Clipboard" : "Copy XML"}
+              {copied ? "Copied" : "Copy XML"}
             </button>
             <button
               onClick={handleDownload}
-              className="px-3 py-1.5 rounded-lg bg-accent text-white hover:bg-accent/90 text-[12px] font-medium transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-accent text-white hover:bg-sky-700 text-[11.5px] font-medium transition-colors"
             >
               Download .XML File
             </button>

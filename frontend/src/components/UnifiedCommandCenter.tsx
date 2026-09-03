@@ -48,21 +48,21 @@ export function UnifiedCommandCenter({
       {/* 1. TOP TRIAGE KPI BANNER */}
       <TopKpiBanner data={data} hour={hour} />
 
-      {/* 2. MAIN OPERATIONAL WORKSPACE (Map on left 60%, Directives & Gauges on right 40%) */}
+      {/* 2. MAIN OPERATIONAL WORKSPACE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* Left Column: Interactive Geospatial Grid + Integrated Time Scrubber */}
         <div className="lg:col-span-7 xl:col-span-8 space-y-3">
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden bg-surface shadow-xs">
             {/* Map Controls Header */}
             <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 border-b border-line bg-surface">
-              <div className="flex items-center gap-1 bg-sunken p-1 rounded-lg">
+              <div className="flex items-center gap-1 bg-sunken p-0.5 rounded-lg border border-line">
                 {METRIC_ORDER.map((key) => (
                   <button
                     key={key}
                     onClick={() => setMetric(key)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+                    className={`px-2.5 py-1 rounded-md text-[11.5px] font-medium transition-all ${
                       metric === key
-                        ? "bg-accent text-white shadow-sm font-bold"
+                        ? "bg-surface text-accent font-semibold shadow-xs border border-line"
                         : "text-ink-soft hover:text-ink"
                     }`}
                   >
@@ -71,16 +71,16 @@ export function UnifiedCommandCenter({
                 ))}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <span className="text-[11px] text-ink-faint">Scale:</span>
-                <div className="flex bg-sunken p-0.5 rounded-lg">
+                <div className="flex bg-sunken p-0.5 rounded-lg border border-line">
                   {(["contrast", "absolute"] as ScaleMode[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => setScaleMode(m)}
-                      className={`px-2 py-0.5 rounded text-[10px] capitalize font-medium ${
+                      className={`px-2 py-0.5 rounded text-[10.5px] capitalize font-medium ${
                         scaleMode === m
-                          ? "bg-surface text-ink font-semibold"
+                          ? "bg-surface text-ink font-semibold shadow-xs border border-line"
                           : "text-ink-soft hover:text-ink"
                       }`}
                     >
@@ -92,8 +92,8 @@ export function UnifiedCommandCenter({
             </div>
 
             {/* Neighborhood Quick Search Bar */}
-            <div className="px-3.5 py-2 bg-sunken/60 border-b border-line flex items-center gap-2">
-              <span className="text-[12px] text-ink-faint">🔍 Search Ward:</span>
+            <div className="px-3.5 py-2 bg-slate-50 border-b border-line flex items-center gap-2">
+              <span className="text-[11.5px] font-medium text-ink-soft">Search Ward:</span>
               <div className="flex-1">
                 <ZonePicker
                   data={data}
@@ -119,18 +119,18 @@ export function UnifiedCommandCenter({
 
             {/* Integrated Continuous 24-Hour Time Scrubber */}
             <div className="p-3.5 border-t border-line bg-surface space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-[11.5px]">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-ink uppercase tracking-wider text-[10px]">
-                    24h Solar Scrubber
+                  <span className="font-semibold text-ink text-[11px]">
+                    24-Hour Time Progression
                   </span>
                   {isSolarPeak && (
-                    <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-mono text-[9px] font-bold uppercase animate-pulse">
-                      Peak Radiation Danger Window (11:00–15:00)
+                    <span className="px-1.5 py-0.2 rounded bg-red-50 text-red-700 font-mono text-[10px] font-medium border border-red-200">
+                      Peak Solar Flux Window (11:00–15:00)
                     </span>
                   )}
                 </div>
-                <span className="font-mono text-[14px] font-bold text-accent">
+                <span className="font-mono text-[13.5px] font-bold text-accent">
                   {label} IST
                 </span>
               </div>
@@ -141,16 +141,16 @@ export function UnifiedCommandCenter({
                 max={labels.length - 1 || 23}
                 value={hour}
                 onChange={(e) => setHour(Number(e.target.value))}
-                className="w-full accent-cyan-400 cursor-pointer h-2 bg-sunken rounded-lg"
+                className="w-full accent-sky-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
                 aria-label="Hour of day (IST)"
               />
 
               <div className="flex justify-between text-[10px] text-ink-faint font-mono">
-                <span>00:00 (Midnight)</span>
+                <span>00:00 (Night)</span>
                 <span>06:00 (Dawn)</span>
-                <span className="text-amber-400 font-bold">12:00 (Solar Noon)</span>
-                <span className="text-orange-400 font-bold">15:00 (Peak Heat)</span>
-                <span>18:00 (Dusk)</span>
+                <span className="font-medium text-amber-700">12:00 (Solar Noon)</span>
+                <span className="font-medium text-red-700">15:00 (Peak Heat)</span>
+                <span>18:00 (Sunset)</span>
                 <span>23:00 (Night)</span>
               </div>
             </div>
@@ -158,11 +158,11 @@ export function UnifiedCommandCenter({
         </div>
 
         {/* Right Column: Role Directive, Multi-Index Gauge, and Selected Ward */}
-        <div className="lg:col-span-5 xl:col-span-4 space-y-4">
+        <div className="lg:col-span-5 xl:col-span-4 space-y-3.5">
           {/* Action Matrix for the active Role */}
           <RoleDirectiveCard role={role} data={data} hour={hour} />
 
-          {/* Multi-Index "True Feel" Breakdown */}
+          {/* Multi-Index Breakdown */}
           <MultiIndexGauge data={data} hour={hour} selectedH3={selected} />
 
           {/* Selected Ward Microclimate */}
@@ -173,21 +173,19 @@ export function UnifiedCommandCenter({
             onClear={() => setSelected(null)}
           />
 
-          {/* Quick Deep-Dive Triggers */}
+          {/* Secondary Action Buttons */}
           <div className="flex gap-2">
             <button
               onClick={onOpenCap}
-              className="flex-1 py-2 px-3 rounded-lg bg-surface border border-line hover:border-line-strong text-ink text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors"
+              className="flex-1 py-1.5 px-3 rounded-lg bg-surface border border-line hover:bg-surface-hover text-ink-soft hover:text-ink text-[11.5px] font-medium transition-colors text-center"
             >
-              <span>📡</span>
-              <span>Export CAP 1.2 XML</span>
+              Export CAP 1.2 XML
             </button>
             <button
               onClick={onOpenMethodology}
-              className="flex-1 py-2 px-3 rounded-lg bg-surface border border-line hover:border-line-strong text-ink text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors"
+              className="flex-1 py-1.5 px-3 rounded-lg bg-surface border border-line hover:bg-surface-hover text-ink-soft hover:text-ink text-[11.5px] font-medium transition-colors text-center"
             >
-              <span>🔬</span>
-              <span>Methodology & Provenance</span>
+              Methodology & Sources
             </button>
           </div>
         </div>
@@ -195,35 +193,35 @@ export function UnifiedCommandCenter({
 
       {/* 3. LOWER OPERATIONAL BAND: Scannable 24h Persona Matrix + Nocturnal Recovery Deficit */}
       <div className="space-y-4">
-        <div className="card p-4 space-y-3">
+        <div className="card p-4 space-y-3 bg-surface shadow-xs">
           <div className="flex items-center justify-between border-b border-line pb-2">
             <div>
-              <h3 className="font-bold text-[14px] text-ink">
-                ISO 7243 & ACGIH Persona Safe-Work Matrix
+              <h3 className="font-semibold text-[14px] text-ink">
+                Occupational Work-Rest Regimes (ISO 7243 / ACGIH)
               </h3>
-              <p className="text-[11px] text-ink-soft">
-                Legally permitted outdoor working minutes per hour across 4 vulnerable demographic profiles
+              <p className="text-[11.5px] text-ink-soft">
+                Hourly safe working minute allocations across four heat-vulnerable demographics
               </p>
             </div>
-            <span className="text-[10px] font-mono text-ink-faint">
-              STATUTORY WORK LIMITS
+            <span className="text-[10px] font-mono text-ink-faint uppercase font-medium">
+              Statutory Benchmark
             </span>
           </div>
           <SafeWorkGrid data={data} hour={hour} onHour={setHour} />
         </div>
 
-        <div className="card p-4 space-y-3">
+        <div className="card p-4 space-y-3 bg-surface shadow-xs">
           <div className="flex items-center justify-between border-b border-line pb-2">
             <div>
-              <h3 className="font-bold text-[14px] text-ink">
-                Nocturnal Recovery Deficit Tracker
+              <h3 className="font-semibold text-[14px] text-ink">
+                Nocturnal Recovery Deficit Assessment
               </h3>
-              <p className="text-[11px] text-ink-soft">
-                The hidden heatwave killer: tracking consecutive nights failing to drop below the 27 °C cardiovascular reset barrier
+              <p className="text-[11.5px] text-ink-soft">
+                Tracking overnight minimum temperatures against the 27 °C biological cardiovascular reset barrier
               </p>
             </div>
-            <span className="text-[10px] font-mono text-amber-400">
-              BIOLOGICAL RESET THRESHOLD: 27 °C
+            <span className="text-[10px] font-mono text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+              Recovery Threshold: 27 °C
             </span>
           </div>
           <NightRecovery data={data} />
