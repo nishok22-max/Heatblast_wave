@@ -3,31 +3,30 @@ import type { DatasetKey } from "./data";
 import { BUNDLED, fetchDataset } from "./data";
 import type { MetricKey, HeatData } from "./types";
 import type { ScaleMode } from "./metrics";
+import type { NavItemKey } from "./components/AppShell";
 import { AppShell } from "./components/AppShell";
 import { UnifiedCommandCenter } from "./components/UnifiedCommandCenter";
 import { CapExportModal } from "./components/CapExportModal";
 import { MethodologyModal } from "./components/MethodologyModal";
-import type { RoleType } from "./components/RoleDirectiveCard";
 
 /** Matches heatstress.live.LIVE_REFRESH_SECONDS on the backend (5 minutes). */
 const REFRESH_MS = 5 * 60 * 1000;
 
 export default function App() {
-  // Default to LIVE forecast mode as requested
   const [dataset, setDataset] = useState<DatasetKey>("live");
   const [data, setData] = useState<HeatData>(BUNDLED.live);
   const [stale, setStale] = useState(false);
 
-  // Active operational role
-  const [role, setRole] = useState<RoleType>("commissioner");
+  // Active navigation sidebar state
+  const [activeNav, setActiveNav] = useState<NavItemKey>("dashboard");
 
   // Core telemetry state
   const [metric, setMetric] = useState<MetricKey>("utci");
-  const [hour, setHour] = useState(14);
+  const [hour, setHour] = useState(15); // 3:00 PM IST
   const [selected, setSelected] = useState<string | null>(null);
   const [scaleMode, setScaleMode] = useState<ScaleMode>("contrast");
 
-  // Modals for deep-dive technical drawers
+  // Modals
   const [isCapOpen, setIsCapOpen] = useState(false);
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
 
@@ -78,16 +77,18 @@ export default function App() {
       data={data}
       dataset={dataset}
       onDataset={switchDataset}
-      role={role}
-      onRole={setRole}
-      hourLabel={label}
+      activeNav={activeNav}
+      onSelectNav={setActiveNav}
+      dateStr="14 May 2025"
+      timeStr={`${label} IST`}
+      hour={hour}
+      onHourChange={setHour}
       stale={stale}
-      onOpenCap={() => setIsCapOpen(true)}
+      onOpenAlerts={() => setIsCapOpen(true)}
       onOpenMethodology={() => setIsMethodologyOpen(true)}
     >
       <UnifiedCommandCenter
         data={data}
-        role={role}
         metric={metric}
         setMetric={setMetric}
         scaleMode={scaleMode}
