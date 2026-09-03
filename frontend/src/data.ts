@@ -1,24 +1,20 @@
 import type { HeatData } from "./types";
 
 /**
- * The baked dataset, BUNDLED AT BUILD TIME rather than fetched.
+ * Two layers: the baked dataset bundled at build time, and a live overlay
+ * fetched from the API when one is reachable.
  *
- * WHY NOT fetch():
+ * WHY THE BUNDLE IS STILL HERE, now that there is an API:
  * Chromium treats a page loaded from file:// as an opaque origin and blocks
- * fetch()/XHR against sibling file:// URLs. A fetch-based build therefore works
- * over http in dev and silently fails the moment the demo is opened straight
- * from disk — which is exactly the scenario NFR-1 exists to guarantee, and
- * exactly the scenario you would discover on stage.
+ * fetch()/XHR against sibling file:// URLs. A fetch-only build therefore works
+ * over http in dev and silently renders blank the moment the demo is opened
+ * straight from disk — which is exactly the scenario NFR-1 exists to guarantee,
+ * and exactly the scenario you would discover on stage. It is also what the
+ * GitHub Pages deploy serves, where there is no localhost to reach.
  *
- * Inlining the six files removes that entire class of failure: there is no
- * network, no origin, and no loading state. The cost is ~500 KB added to the
- * bundle and, more importantly, that RE-BAKING THE DATA REQUIRES A REBUILD:
- *
- *     python scripts/06_bake_web.py config/ahmedabad.yaml
- *     cd frontend && npm run build
- *
- * That is a deliberate trade: a guaranteed-offline demo is worth more than
- * hot-swappable data for a fixed historical hindcast.
+ * So the bundle is the floor: the page always has data before any request is
+ * made. The API is an enhancement on top, and a failed fetch degrades to "the
+ * numbers are a little old" rather than to an error page.
  *
  * `?raw` is used uniformly so the .geojson extension needs no special Vite
  * config, and so every file travels the same code path.
@@ -31,27 +27,6 @@ import personasRaw from "../../web/data/personas.json?raw";
 import advisoryRaw from "../../web/data/advisory.json?raw";
 import insightsRaw from "../../web/data/insights.json?raw";
 
-export const HEAT_DATA: HeatData = {
-  meta: JSON.parse(metaRaw),
-  hexes: JSON.parse(hexesRaw),
-  hourly: JSON.parse(hourlyRaw),
-  city: JSON.parse(cityRaw),
-  personas: JSON.parse(personasRaw),
-  advisory: JSON.parse(advisoryRaw),
-  insights: JSON.parse(insightsRaw),
-};
-
-/**
- * The live forecast dataset, bundled the same way.
- *
- * Both datasets ship inside the page. The historical hindcast is the narrative
- * hero; the live view answers the obvious objection ("so it only works on the
- * past?") and closes the forecast requirement. Because both are compiled in,
- * switching between them needs no network — the live view degrades to "forecast
- * as of <timestamp>" rather than breaking when there is no wifi.
- *
- * Refreshing the live data means re-running `scripts/07_live.py` and rebuilding.
- */
 import liveMetaRaw from "../../web/data/live/meta.json?raw";
 import liveHexesRaw from "../../web/data/live/hexes.geojson?raw";
 import liveHourlyRaw from "../../web/data/live/hourly.json?raw";
@@ -60,27 +35,70 @@ import livePersonasRaw from "../../web/data/live/personas.json?raw";
 import liveAdvisoryRaw from "../../web/data/live/advisory.json?raw";
 import liveInsightsRaw from "../../web/data/live/insights.json?raw";
 
-export const LIVE_DATA: HeatData = {
-  meta: JSON.parse(liveMetaRaw),
-  hexes: JSON.parse(liveHexesRaw),
-  hourly: JSON.parse(liveHourlyRaw),
-  city: JSON.parse(liveCityRaw),
-  personas: JSON.parse(livePersonasRaw),
-  advisory: JSON.parse(liveAdvisoryRaw),
-  insights: JSON.parse(liveInsightsRaw),
-};
-
 export type DatasetKey = "historical" | "live";
 
-export const DATASETS: Record<DatasetKey, { data: HeatData; label: string; sub: string }> = {
+export const DATASET_META: Record<DatasetKey, { label: string; sub: string }> = {
   historical: {
-    data: HEAT_DATA,
     label: "May 2010 heatwave",
     sub: "the event that killed ~1,344 people",
   },
   live: {
-    data: LIVE_DATA,
     label: "Forecast",
     sub: "now and the next few days",
   },
 };
+
+/** The UI calls the second dataset "live"; the API namespaces it "forecast".
+ *  One map, so the two names cannot silently drift apart again. */
+const ROUTE: Record<DatasetKey, string> = {
+  historical: "historical",
+  live: "forecast",
+};
+
+const API_BASE: string =
+  import.meta.env.VITE_API_BASE ?? "http://localhost:8000/api/v1";
+
+export const BUNDLED: Record<DatasetKey, HeatData> = {
+  historical: {
+    meta: JSON.parse(metaRaw),
+    hexes: JSON.parse(hexesRaw),
+    hourly: JSON.parse(hourlyRaw),
+    city: JSON.parse(cityRaw),
+    personas: JSON.parse(personasRaw),
+    advisory: JSON.parse(advisoryRaw),
+    insights: JSON.parse(insightsRaw),
+  },
+  live: {
+    meta: JSON.parse(liveMetaRaw),
+    hexes: JSON.parse(liveHexesRaw),
+    hourly: JSON.parse(liveHourlyRaw),
+    city: JSON.parse(liveCityRaw),
+    personas: JSON.parse(livePersonasRaw),
+    advisory: JSON.parse(liveAdvisoryRaw),
+    insights: JSON.parse(liveInsightsRaw),
+  },
+};
+
+async function getJson(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText} — ${url}`);
+  }
+  return response.json();
+}
+
+export async function fetchDataset(key: DatasetKey): Promise<HeatData> {
+  const base = `${API_BASE}/${ROUTE[key]}`;
+  const [meta, hexes, hourly, city, personas, advisory, insights] =
+    await Promise.all([
+      getJson(`${base}/meta`),
+      getJson(`${base}/map`),
+      getJson(`${base}/hourly`),
+      getJson(`${base}/summary`),
+      getJson(`${base}/personas`),
+      getJson(`${base}/advisory`),
+      getJson(`${base}/insights`),
+    ]);
+
+  return { meta, hexes, hourly, city, personas, advisory, insights };
+}

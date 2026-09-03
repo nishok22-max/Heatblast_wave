@@ -18,3 +18,7 @@ h3>=4.0
 
 # --- satellite (Day 1 PM; optional if WUDAPT LCZ fallback is used) ---
 earthengine-api>=0.1.390
+
+# --- api backend ---
+fastapi>=0.110.0
+uvicorn>=0.28.0

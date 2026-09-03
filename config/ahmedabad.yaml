@@ -51,3 +51,13 @@ kill_gate:
   # Day-1 decision thresholds on intra-city WBGT spread at the focus hour.
   proceed_spread_c: 3.0
   pivot_spread_c: 1.5
+
+live:
+  # How often the refresher recomputes. Open-Meteo publishes roughly hourly, but
+  # the focus hour is "the peak stress hour AHEAD", so it moves with the wall
+  # clock and the output genuinely changes between upstream releases.
+  refresh_seconds: 300
+  # How stale a cached Open-Meteo response may be before it is refetched. Under
+  # the upstream hourly cadence, so we never sit on superseded data; at a
+  # 5-minute cadence this is ~96 calls/day against a ~10,000/day free tier.
+  max_age_minutes: 15

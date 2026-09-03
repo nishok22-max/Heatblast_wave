@@ -3,8 +3,11 @@ import type { DatasetKey } from "./data";
 import { DATASETS } from "./data";
 import type { HeatData, MetricKey } from "./types";
 import { METRICS, METRIC_ORDER } from "./metrics";
+import { useState, useEffect } from "react";
+import type { DatasetKey } from "./data";
+import { BUNDLED, fetchDataset } from "./data";
+import type { MetricKey, HeatData } from "./types";
 import type { ScaleMode } from "./metrics";
-import type { ViewKey } from "./components/AppShell";
 import { AppShell } from "./components/AppShell";
 import { HexMap } from "./components/HexMap";
 import { CellDetail } from "./components/CellDetail";
@@ -28,8 +31,24 @@ export default function App() {
 
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
   const [backendLoading, setBackendLoading] = useState<boolean>(false);
+import { UnifiedCommandCenter } from "./components/UnifiedCommandCenter";
+import { CapExportModal } from "./components/CapExportModal";
+import { MethodologyModal } from "./components/MethodologyModal";
+import type { RoleType } from "./components/RoleDirectiveCard";
 
-  const [view, setView] = useState<ViewKey>("dashboard");
+/** Matches heatstress.live.LIVE_REFRESH_SECONDS on the backend (5 minutes). */
+const REFRESH_MS = 5 * 60 * 1000;
+
+export default function App() {
+  // Default to LIVE forecast mode as requested
+  const [dataset, setDataset] = useState<DatasetKey>("live");
+  const [data, setData] = useState<HeatData>(BUNDLED.live);
+  const [stale, setStale] = useState(false);
+
+  // Active operational role
+  const [role, setRole] = useState<RoleType>("commissioner");
+
+  // Core telemetry state
   const [metric, setMetric] = useState<MetricKey>("utci");
   const [hour, setHour] = useState(14);
   const [selected, setSelected] = useState<string | null>(null);
@@ -55,6 +74,42 @@ export default function App() {
   }, [dataset, loadData]);
 
   const data = activeData;
+  // Modals for deep-dive technical drawers
+  const [isCapOpen, setIsCapOpen] = useState(false);
+  const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const load = () =>
+      fetchDataset(dataset).then(
+        (d) => {
+          if (!active) return;
+          setData(d);
+          setStale(false);
+          setHour((h) => Math.min(h, (d.hourly.meta.labels_ist?.length ?? 24) - 1));
+        },
+        () => {
+          if (active) setStale(true);
+        },
+      );
+
+    setData(BUNDLED[dataset]);
+    load();
+
+    if (dataset !== "live") return () => { active = false; };
+
+    // Poll every 5 minutes in live forecast mode
+    const tick = () => { if (document.visibilityState === "visible") load(); };
+    const id = window.setInterval(tick, REFRESH_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      active = false;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [dataset]);
+
   const labels = data.hourly.meta.labels_ist ?? [];
   const label = labels[hour] ?? `${String(hour).padStart(2, "0")}:00`;
 
@@ -181,13 +236,17 @@ export default function App() {
     </Panel>
   );
 
+    const next = BUNDLED[key].hourly.meta.labels_ist?.length ?? 24;
+    setHour((h) => Math.min(h, next - 1));
+  }
+
   return (
     <AppShell
       data={data}
       dataset={dataset}
       onDataset={switchDataset}
-      view={view}
-      onView={setView}
+      role={role}
+      onRole={setRole}
       hourLabel={label}
       backendConnected={backendConnected}
       backendLoading={backendLoading}
@@ -522,6 +581,36 @@ export default function App() {
           <ProvenancePanel data={data} />
         </div>
       )}
+      stale={stale}
+      onOpenCap={() => setIsCapOpen(true)}
+      onOpenMethodology={() => setIsMethodologyOpen(true)}
+    >
+      <UnifiedCommandCenter
+        data={data}
+        role={role}
+        metric={metric}
+        setMetric={setMetric}
+        scaleMode={scaleMode}
+        setScaleMode={setScaleMode}
+        hour={hour}
+        setHour={setHour}
+        selected={selected}
+        setSelected={setSelected}
+        onOpenCap={() => setIsCapOpen(true)}
+        onOpenMethodology={() => setIsMethodologyOpen(true)}
+      />
+
+      <CapExportModal
+        isOpen={isCapOpen}
+        onClose={() => setIsCapOpen(false)}
+        data={data}
+      />
+
+      <MethodologyModal
+        isOpen={isMethodologyOpen}
+        onClose={() => setIsMethodologyOpen(false)}
+        data={data}
+      />
     </AppShell>
   );
 }

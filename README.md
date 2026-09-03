@@ -125,15 +125,42 @@ runs unchanged.
 rests on the assumed urban-heat amplitude. Live input changes how *current* the
 numbers are, not how *validated*. Every provenance flag stays exactly as it was.
 
-**Keeping it fresh.** `.github/workflows/refresh-live.yml` re-runs the pipeline
-every six hours, commits the refreshed JSON and redeploys the page. The physics
-runs in Python, so a browser cannot recompute indices on its own — republishing
-the baked JSON is the honest way to keep it current without porting thermofeel
-to TypeScript.
+**Keeping it fresh — every five minutes, locally.**
 
-The demo stays offline-capable either way: the data is compiled into the page,
-so opening `index.html` from a USB stick shows the last published forecast with
-its retrieval time on screen, never a blank map.
+```powershell
+# either of these refreshes web/data/live/ on a 5-minute interval
+python -m uvicorn api.main:app --port 8000        # the API does it on its own
+.\.venv\Scripts\python.exe scripts\08_live_scheduler.py config\ahmedabad.yaml
+```
+
+Both call one function, `heatstress.live.refresh_once`, which takes a lock:
+whoever gets it computes and writes, and whoever does not reads what the winner
+wrote. Running the API alone, the scheduler alone, or both is therefore correct,
+and running both costs one recompute per interval rather than two. The scheduler
+exists for the cases uvicorn does not cover — refreshing the baked files with the
+API down, a controllable `--interval` and `--once` for testing, and being the
+thing you would hand to Task Scheduler or systemd.
+
+*Why recompute every five minutes when Open-Meteo only publishes hourly:* the
+focus is **the peak stress hour ahead**, so it moves with the wall clock even
+when the weather payload has not changed, and a page labelled live with a frozen
+timestamp is a credibility problem. A recompute costs under a second, and the
+writer skips files whose bytes did not change — a typical tick rewrites only
+`meta.json`. Interval and forecast TTL are in the `live:` block of the city
+config.
+
+`.github/workflows/refresh-live.yml` still re-runs the pipeline every six hours,
+commits the refreshed JSON and redeploys the page — that is what keeps the
+*published* copy current for anyone who is not running the API locally.
+
+The demo stays offline-capable either way, and this is deliberate: the baked
+data is still compiled into the page as the **floor**, and the API is an overlay
+on top of it. So opening `index.html` from a USB stick with wifi off shows the
+last published forecast with its retrieval time on screen, never a blank map or
+a spinner; and when the API *is* reachable, the page silently upgrades to live
+numbers every five minutes. A failed refresh degrades to a small "not refreshing"
+badge beside the timestamp rather than to an error page — the data on screen is
+still the last good data.
 
 ---
 
