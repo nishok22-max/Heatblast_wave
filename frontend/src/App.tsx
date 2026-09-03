@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { DatasetKey } from "./data";
-import { fetchDataset, DATASET_META } from "./data";
+import { BUNDLED, fetchDataset } from "./data";
 import type { MetricKey, HeatData } from "./types";
 import { METRICS, METRIC_ORDER } from "./metrics";
 import type { ScaleMode } from "./metrics";
@@ -21,24 +21,15 @@ import { ProvenancePanel } from "./components/ProvenancePanel";
 import { Explainer } from "./components/Explainer";
 import { Panel } from "./components/ui";
 
+/** Matches heatstress.live.LIVE_REFRESH_SECONDS on the backend. */
+const REFRESH_MS = 5 * 60 * 1000;
+
 export default function App() {
   const [dataset, setDataset] = useState<DatasetKey>("historical");
-  const [data, setData] = useState<HeatData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    setData(null);
-    setError(null);
-    fetchDataset(dataset)
-      .then(d => {
-        if (active) setData(d);
-      })
-      .catch(e => {
-        if (active) setError(e.message);
-      });
-    return () => { active = false; };
-  }, [dataset]);
+  /** Never null: the bundled bake is the floor, so there is no loading state
+   *  and the page renders from file:// with no server at all. */
+  const [data, setData] = useState<HeatData>(BUNDLED.historical);
+  const [stale, setStale] = useState(false);
 
   const [view, setView] = useState<ViewKey>("dashboard");
   const [metric, setMetric] = useState<MetricKey>("utci");
@@ -46,16 +37,44 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [scaleMode, setScaleMode] = useState<ScaleMode>("contrast");
 
-  if (error) {
-    return <div className="p-8 text-red-600">Failed to load data: {error}</div>;
-  }
-  
-  if (!data) {
-    return <div className="p-8 text-ink-soft flex items-center gap-2">
-      <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-      Loading dataset...
-    </div>;
-  }
+  useEffect(() => {
+    let active = true;
+
+    const load = () =>
+      fetchDataset(dataset).then(
+        d => {
+          if (!active) return;
+          setData(d);
+          setStale(false);
+          // A refresh can move the focus day, so the hour array can shrink.
+          // Clamp rather than reset: yanking the slider out from under someone
+          // every five minutes would be worse than a slightly stale position.
+          setHour(h => Math.min(h, (d.hourly.meta.labels_ist?.length ?? 24) - 1));
+        },
+        () => {
+          // Keep showing the last good data. A poll failing while uvicorn
+          // restarts must not replace a working dashboard with an error page.
+          if (active) setStale(true);
+        },
+      );
+
+    setData(BUNDLED[dataset]);   // instant, then upgraded by the fetch below
+    load();
+
+    if (dataset !== "live") return () => { active = false; };
+
+    // Only the forecast polls. Refetching on tab focus matters because timers
+    // are suspended while the laptop sleeps — without it you reopen the lid to
+    // yesterday's forecast on a page labelled live.
+    const tick = () => { if (document.visibilityState === "visible") load(); };
+    const id = window.setInterval(tick, REFRESH_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      active = false;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [dataset]);
 
   const labels = data.hourly.meta.labels_ist ?? [];
   const label = labels[hour] ?? `${String(hour).padStart(2, "0")}:00`;
@@ -65,11 +84,10 @@ export default function App() {
   function switchDataset(key: DatasetKey) {
     setDataset(key);
     setSelected(null);
-    setHour((h) => {
-      // We can't access DATASETS[key].data here anymore synchronously.
-      // Resetting to 14 is safe, or keeping the current hour.
-      return 14;
-    });
+    // Clamp rather than reset to 14: the other dataset may have a shorter day,
+    // and a hour past its end would index off the end of every series.
+    const next = BUNDLED[key].hourly.meta.labels_ist?.length ?? 24;
+    setHour(h => Math.min(h, next - 1));
   }
 
   const mapBlock = (height: string) => (
@@ -169,6 +187,7 @@ export default function App() {
       view={view}
       onView={setView}
       hourLabel={label}
+      stale={stale}
     >
       {view === "dashboard" && (
         <div className="space-y-4">

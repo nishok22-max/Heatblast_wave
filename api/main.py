@@ -5,23 +5,41 @@ from pathlib import Path
 import asyncio
 from contextlib import asynccontextmanager
 
-from api.services.engine import run_live_forecast
+import sys
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+from heatstress import live  # noqa: E402
 
-# In-memory cache for the live forecast
+# In-memory cache for the live forecast. Rebound in a single assignment, so a
+# request sees either the whole old payload or the whole new one -- unlike the
+# seven files on disk, which are seven separate swaps.
 live_cache = None
 
+
 async def refresh_forecast_loop():
+    """Recompute and republish the live forecast on an interval.
+
+    Shares `refresh_once` with scripts/08_live_scheduler.py, which takes a lock:
+    if the scheduler is also running, exactly one of us computes per cycle and
+    the other reads what it wrote. Writing (rather than only caching in memory)
+    keeps `web/data/live/` current for the disk-fallback routes below and for
+    the static build.
+    """
     global live_cache
+    interval = live.LIVE_REFRESH_SECONDS
     while True:
         try:
-            print("Refreshing live forecast in background...")
-            # We use asyncio.to_thread because run_live_forecast is synchronous and compute-heavy
-            live_cache = await asyncio.to_thread(run_live_forecast, "config/ahmedabad.yaml")
-            print("Live forecast refreshed successfully.")
+            result = await asyncio.to_thread(
+                live.refresh_once, live.DEFAULT_CONFIG,
+                freshness_floor=min(interval / 2, 60.0),
+            )
+            live_cache = result.payload
+            print(f"[live] {result.status} in {result.duration_s:.1f}s · "
+                  f"generated {result.payload['meta']['generated_at_ist']}")
         except Exception as e:
-            print(f"Error refreshing live forecast: {e}")
-        # Refresh every 4 hours (14400 seconds)
-        await asyncio.sleep(14400)
+            # Never let the loop die: the previous payload stays served.
+            print(f"[live] refresh failed, serving last good: {e!r}")
+        await asyncio.sleep(interval)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,11 +66,19 @@ def get_data_dir(is_live: bool = False) -> Path:
     return LIVE_DIR if is_live else DATA_DIR
 
 def load_json(filename: str, is_live: bool = False):
+    """Read a baked file, tolerating a refresher swapping it underneath us.
+
+    A refresh replaces these files atomically, but on Windows the replace can
+    briefly make the name unopenable. Retrying distinguishes "being replaced
+    right now" from "never existed", so a race returns data rather than a 404.
+    """
     file_path = get_data_dir(is_live) / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"Data file not found: {filename}")
-    with file_path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        return live.read_json_retry(file_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Data file not found: {filename}")
 
 # --------------------------------------------------------------------------
 # HISTORICAL ENDPOINTS (May 2010 Hindcast)
@@ -102,21 +128,25 @@ def get_historical_meta():
 # --------------------------------------------------------------------------
 
 @app.get("/api/v1/forecast/map")
+@app.get("/api/v1/live/map")
 def get_forecast_map():
     if live_cache: return live_cache["map"]
     return load_json("hexes.geojson", is_live=True)
 
 @app.get("/api/v1/forecast/summary")
+@app.get("/api/v1/live/summary")
 def get_forecast_summary():
     if live_cache: return live_cache["summary"]
     return load_json("city.json", is_live=True)
 
 @app.get("/api/v1/forecast/hourly")
+@app.get("/api/v1/live/hourly")
 def get_forecast_hourly():
     if live_cache: return live_cache["hourly"]
     return load_json("hourly.json", is_live=True)
 
 @app.get("/api/v1/forecast/cell/{hex_id}")
+@app.get("/api/v1/live/cell/{hex_id}")
 def get_forecast_cell(hex_id: str):
     hourly = live_cache["hourly"] if live_cache else load_json("hourly.json", is_live=True)
     if hex_id not in hourly["hexes"]:
@@ -127,21 +157,26 @@ def get_forecast_cell(hex_id: str):
     }
 
 @app.get("/api/v1/forecast/personas")
+@app.get("/api/v1/live/personas")
 def get_forecast_personas():
     if live_cache: return live_cache["personas"]
     return load_json("personas.json", is_live=True)
 
 @app.get("/api/v1/forecast/advisory")
+@app.get("/api/v1/live/advisory")
 def get_forecast_advisory():
     if live_cache: return live_cache["advisory"]
     return load_json("advisory.json", is_live=True)
 
 @app.get("/api/v1/forecast/insights")
+@app.get("/api/v1/live/insights")
 def get_forecast_insights():
     if live_cache: return live_cache["insights"]
     return load_json("insights.json", is_live=True)
 
 @app.get("/api/v1/forecast/meta")
+@app.get("/api/v1/live/meta")
 def get_forecast_meta():
     if live_cache: return live_cache["meta"]
     return load_json("meta.json", is_live=True)
+

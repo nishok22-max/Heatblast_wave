@@ -36,6 +36,7 @@ export function AppShell({
   view,
   onView,
   hourLabel,
+  stale = false,
   children,
 }: {
   data: HeatData;
@@ -44,6 +45,8 @@ export function AppShell({
   view: ViewKey;
   onView: (v: ViewKey) => void;
   hourLabel: string;
+  /** A background refresh failed; the numbers shown are the last good ones. */
+  stale?: boolean;
   children: ReactNode;
 }) {
   const isLive = data.meta.mode === "live";
@@ -132,6 +135,14 @@ export function AppShell({
                 {data.meta.n_cells} zones
                 {isLive && data.meta.generated_at_ist && (
                   <> · forecast retrieved {data.meta.generated_at_ist}</>
+                )}
+                {isLive && stale && (
+                  <span
+                    className="ml-1.5 rounded px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[11px] font-medium"
+                    title="The last refresh did not reach the server. These are the most recent numbers we have."
+                  >
+                    not refreshing
+                  </span>
                 )}
               </p>
             </div>

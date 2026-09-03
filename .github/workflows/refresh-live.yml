@@ -53,6 +53,13 @@ jobs:
 
       # Urban form is fetched from OpenStreetMap and cached in the repo; it does
       # not change day to day, so this step never touches Overpass.
+      #
+      # One-shot on purpose. Locally the same refresh runs every five minutes,
+      # either from uvicorn's own loop or from scripts/08_live_scheduler.py;
+      # here we want exactly one refresh per workflow run, which is what
+      # `07_live.py` (and `08_live_scheduler.py --once`) does. No lock is needed
+      # on a fresh runner, and `concurrency:` above already stops CI racing
+      # itself.
       - name: Refresh live forecast
         run: python scripts/07_live.py config/ahmedabad.yaml
 
