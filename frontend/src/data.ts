@@ -79,6 +79,22 @@ export const BUNDLED: Record<DatasetKey, HeatData> = {
   },
 };
 
+export const HEAT_DATA = BUNDLED.historical;
+export const LIVE_DATA = BUNDLED.live;
+
+export const DATASETS: Record<DatasetKey, { data: HeatData; label: string; sub: string }> = {
+  historical: {
+    data: BUNDLED.historical,
+    label: DATASET_META.historical.label,
+    sub: DATASET_META.historical.sub,
+  },
+  live: {
+    data: BUNDLED.live,
+    label: DATASET_META.live.label,
+    sub: DATASET_META.live.sub,
+  },
+};
+
 async function getJson(url: string) {
   const response = await fetch(url);
   if (!response.ok) {
