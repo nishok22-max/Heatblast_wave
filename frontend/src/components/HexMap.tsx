@@ -88,10 +88,9 @@ export function HexMap({
     if (scaleMode === "absolute") return domainFor(metric, data.meta.domains);
     const values = data.hexes.features
       .map((f) => data.hourly.hexes[f.properties.h3_index]?.[metric][hour])
-      .filter((v): v is number => Number.isFinite(v));
     if (!values.length) return domainFor(metric, data.meta.domains);
     return paddedDomain(Math.min(...values), Math.max(...values));
-  }, [data, metric, hour, scaleMode, def]);
+  }, [data, metric, hour, scaleMode]);
 
   const viewBox = `${pan.x} ${pan.y} ${VIEW_W / zoom} ${viewH / zoom}`;
   const active = hovered ?? selected;
@@ -191,26 +190,28 @@ export function HexMap({
           ))}
       </svg>
 
-      {/* Hover readout — avoids a tooltip library and stays put while scrubbing. */}
+      {/* Hover readout overlay */}
       {active && activeSeries && (
-        <div className="absolute top-3 left-3 bg-surface/95 border border-line rounded-sm px-2.5 py-1.5 pointer-events-none">
-          <div className="text-[12px] font-semibold text-ink leading-tight">
+        <div className="absolute top-3 left-3 bg-surface/95 backdrop-blur-md border border-line-strong/60 rounded-xl px-3.5 py-2 pointer-events-none shadow-md">
+          <div className="text-[11px] font-extrabold uppercase text-accent tracking-wider leading-tight">
             {activeProps?.place
-              ? `${activeProps.place_exact ? "" : "near "}${activeProps.place}`
-              : "Unnamed area"}
+              ? `${activeProps.place_exact ? "" : "Near "}${activeProps.place}`
+              : "Unnamed Zone"}
           </div>
-          <div className="text-[15px] font-semibold tnum text-ink leading-tight">
-            {formatValue(activeSeries[metric][hour], def)}
+          <div className="text-[18px] font-black tnum text-ink leading-tight mt-0.5">
+            {formatValue(activeSeries[metric][hour], def)} <span className="text-[11px] font-bold text-ink-soft">({def.plain})</span>
           </div>
         </div>
       )}
 
-      <div className="absolute top-3 right-3 flex flex-col gap-1 no-print">
+      {/* Floating Zoom Controls */}
+      <div className="absolute top-3 right-3 flex flex-col gap-1.5 no-print">
         {[
-          { label: "+", act: () => setZoom((z) => Math.min(6, z * 1.5)) },
-          { label: "−", act: () => setZoom((z) => Math.max(1, z / 1.5)) },
+          { label: "+", title: "Zoom in", act: () => setZoom((z) => Math.min(6, z * 1.5)) },
+          { label: "−", title: "Zoom out", act: () => setZoom((z) => Math.max(1, z / 1.5)) },
           {
             label: "⤢",
+            title: "Reset view",
             act: () => {
               setZoom(1);
               setPan({ x: 0, y: 0 });
@@ -220,8 +221,9 @@ export function HexMap({
           <button
             key={b.label}
             onClick={b.act}
-            className="w-7 h-7 bg-surface border border-line rounded-[2px] text-ink-soft hover:text-ink hover:border-line-strong text-[13px] leading-none"
-            aria-label={b.label === "+" ? "Zoom in" : b.label === "−" ? "Zoom out" : "Reset view"}
+            title={b.title}
+            className="w-8 h-8 bg-surface border border-line rounded-lg text-ink font-bold hover:bg-sunken hover:border-line-strong text-[14px] leading-none shadow-2xs transition-all grid place-items-center"
+            aria-label={b.title}
           >
             {b.label}
           </button>
@@ -245,46 +247,44 @@ function Legend({
   const def = METRICS[metric];
   const [lo, hi] = domain;
   return (
-    <div className="absolute bottom-3 left-3 bg-surface/95 border border-line rounded-sm px-3 py-2">
-      <div className="flex items-baseline justify-between gap-3 mb-1">
-        <span className="text-[10px] uppercase tracking-wider font-semibold text-ink-soft">
-          {def.plain}
+    <div className="absolute bottom-3 left-3 bg-surface/95 backdrop-blur-md border border-line-strong/60 rounded-xl px-3.5 py-2.5 shadow-md max-w-xs">
+      <div className="flex items-baseline justify-between gap-3 mb-1.5">
+        <span className="text-[10px] uppercase tracking-wider font-black text-ink">
+          {def.plain} Ramp
         </span>
         <span
-          className={`text-[9px] uppercase tracking-wider font-semibold ${
-            scaleMode === "contrast" ? "text-flag" : "text-ink-faint"
+          className={`text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.2 rounded ${
+            scaleMode === "contrast" ? "bg-flag-bg text-flag border border-flag/20" : "bg-sunken text-ink-faint"
           }`}
         >
-          {scaleMode === "contrast" ? "scaled to this hour" : "absolute scale"}
+          {scaleMode === "contrast" ? "Hour Scaled" : "Absolute Scale"}
         </span>
       </div>
-      <div className="flex h-3 w-52 overflow-hidden rounded-[2px] border border-line">
+      <div className="flex h-3 w-56 overflow-hidden rounded-md border border-line/80 shadow-2xs">
         {RAMP.map((c) => (
           <div key={c} className="flex-1" style={{ background: c }} />
         ))}
       </div>
-      {/* Words as well as numbers. A reader who does not know what 58 °C UTCI
-          means still needs to know which end of the ramp is dangerous, and
-          colour alone must never carry meaning (WCAG 1.4.1). */}
-      <div className="flex justify-between w-52 mt-1 text-[10px] text-ink-faint">
-        <span>safer</span>
-        <span>more dangerous</span>
+      <div className="flex justify-between w-56 mt-1 text-[10px] text-ink-faint font-bold uppercase tracking-wide">
+        <span>🟢 Safer</span>
+        <span>🔴 Dangerous</span>
       </div>
-      <div className="flex justify-between w-52 text-[10px] tnum text-ink-faint">
+      <div className="flex justify-between w-56 text-[10px] tnum font-black text-ink">
         <span>{formatValue(lo, def)}</span>
         <span>{formatValue(hi, def)}</span>
       </div>
-      <div className="mt-1.5 flex gap-3 text-[10px] text-ink-faint">
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 border-t-2 border-[#2b6ca3]" /> water
+      <div className="mt-2 pt-1.5 border-t border-line/60 flex gap-4 text-[10px] text-ink-faint font-bold">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-1 rounded-full bg-[#2b6ca3]" /> Water Body
         </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 border-t-2 border-[#3f7d43]" /> green
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-1 rounded-full bg-[#3f7d43]" /> Parks/Greenery
         </span>
       </div>
     </div>
   );
 }
+
 
 /** Fixed domains, deliberately not derived from the visible hour: a rescaling
  *  legend would hide the diurnal swing the scrubber exists to show. */

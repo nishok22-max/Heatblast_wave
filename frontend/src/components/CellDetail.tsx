@@ -18,11 +18,6 @@ const SEVERITY_TONE = {
   critical: "flag",
 } as const;
 
-/**
- * Per-cell readout. Answers NFR-2 (explainability): every number on screen
- * decomposes into the drivers that produced it, so an official can justify
- * acting on it.
- */
 export function CellDetail({
   data,
   h3,
@@ -36,10 +31,15 @@ export function CellDetail({
 }) {
   if (!h3) {
     return (
-      <div className="flex items-center justify-center p-6 text-center min-h-32">
-        <p className="text-[12px] text-ink-faint leading-relaxed">
-          Click any hexagon on the map to see how hot it was there, why, and
-          what it meant for the different people living in that neighbourhood.
+      <div className="flex flex-col items-center justify-center p-8 text-center min-h-64 bg-surface/50">
+        <span className="w-14 h-14 rounded-2xl bg-accent-soft text-accent grid place-items-center text-[26px] mb-3 border border-accent/20 shadow-2xs">
+          🗺️
+        </span>
+        <h3 className="text-[15px] font-black text-ink mb-1 uppercase tracking-tight">
+          Select a Neighbourhood Zone
+        </h3>
+        <p className="text-[12px] text-ink-faint leading-relaxed max-w-xs font-medium">
+          Click any hexagon on the map to inspect ward thermal risk, Urban Heat Island drivers, population strain, peak hours, and recommended emergency actions.
         </p>
       </div>
     );
@@ -53,34 +53,55 @@ export function CellDetail({
   const label = data.hourly.meta.labels_ist?.[hour] ?? `${hour}:00`;
   const utci = series.utci[hour];
   const wbgt = series.wbgt[hour];
+  const riskVal = Math.round(p.risk_focus * 100);
 
   return (
-    <div>
-      <div className="flex items-start justify-between gap-2 px-3 py-2 border-b border-line sticky top-0 bg-surface z-10">
+    <div className="divide-y divide-line bg-surface rounded-2xl overflow-hidden shadow-sm">
+      {/* Sticky Header */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3.5 bg-slate-900 text-white sticky top-0 z-10 border-b border-slate-800 shadow-sm">
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-ink-faint">
-            {p.place ? (p.place_exact ? "Zone" : "Zone near") : "Zone"}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] uppercase font-black tracking-wider text-amber-400 bg-amber-900/60 border border-amber-500/40 px-2 py-0.5 rounded">
+              {p.place ? (p.place_exact ? "Selected Ward" : "Zone Near") : "H3 Zone"}
+            </span>
+            <span className="font-mono text-[11px] text-slate-400">
+              #{h3.slice(-6)}
+            </span>
           </div>
-          <div className="text-[14px] font-semibold text-ink leading-tight truncate">
+          <div className="text-[17px] font-black text-white leading-tight truncate mt-0.5">
             {p.place ?? "Unnamed area"}
-          </div>
-          <div className="font-mono text-[10px] text-ink-faint">
-            {h3.slice(-8)}
           </div>
         </div>
         <button
           onClick={onClose}
-          className="no-print text-[11px] text-ink-soft hover:text-ink border border-line rounded-[2px] px-1.5 py-0.5"
+          className="no-print text-[11px] font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-2.5 py-1 transition-colors"
         >
-          Clear
+          Clear Selection ✕
         </button>
       </div>
 
-      <div className="p-3 space-y-4">
-        {/* Indices at the selected hour */}
+      <div className="p-4 space-y-6">
+        {/* 01 — RISK */}
         <div>
-          <SectionLabel>Conditions at {label}</SectionLabel>
-          <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+          <StepHeader number="01" title="RISK SCORE & CONDITIONS" subtitle={`Thermal conditions at ${label}`} />
+          
+          <div className="bg-flag-bg border border-flag/30 p-3 rounded-xl flex items-center justify-between gap-3 mb-3 shadow-2xs">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-wider text-flag">
+                Human Heat Risk Index
+              </div>
+              <div className="text-[24px] font-black tnum text-flag leading-none mt-0.5">
+                {riskVal} <span className="text-[13px] font-bold text-flag/80">/ 100</span>
+              </div>
+            </div>
+            <span className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase ${
+              riskVal >= 80 ? "bg-flag text-white" : "bg-amber-500 text-white"
+            }`}>
+              {riskVal >= 80 ? "Extreme Risk" : "Very High Risk"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
             {(["air_temp", "wbgt", "utci", "risk"] as const).map((key) => {
               const def = METRICS[key];
               const value = series[key][hour];
@@ -88,73 +109,71 @@ export function CellDetail({
               return (
                 <div
                   key={key}
-                  className="rounded-[3px] px-2 py-1.5 border border-line"
+                  className="rounded-xl p-2.5 border border-line/60 shadow-2xs transition-transform hover:scale-[1.02]"
                   style={{
                     background: colourFor(value, def),
                     color: inkOn(value, def),
                   }}
                 >
-                  <div className="text-[9px] uppercase tracking-wider opacity-80">
+                  <div className="text-[9px] uppercase font-black tracking-wider opacity-85">
                     {def.plain}
                   </div>
-                  <div className="text-[15px] font-semibold tnum leading-tight">
+                  <div className="text-[18px] font-black tnum leading-tight mt-0.5">
                     {formatValue(value, def)}
                   </div>
-                  {/* The word matters more than the number to most readers. */}
-                  <div className="text-[10px] font-semibold opacity-90">
+                  <div className="text-[10px] font-extrabold opacity-95 mt-0.5">
                     {v.label}
                   </div>
                 </div>
               );
             })}
           </div>
-          <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
+          <p className="mt-2.5 text-[12px] leading-relaxed text-ink-soft bg-sunken/50 p-2.5 rounded-xl border border-line/60 font-medium">
             {verdictFor("utci", utci).detail}
           </p>
         </div>
 
-        {/* Why this cell scores as it does */}
+        {/* 02 — WHY */}
         <div>
-          <SectionLabel>Why is it this hot here?</SectionLabel>
-          <p className="text-[12px] leading-relaxed text-ink-soft mt-1 mb-2">
+          <StepHeader number="02" title="WHY IS IT HOT HERE?" subtitle="Urban Heat Island drivers & spatial factors" />
+          <p className="text-[12px] leading-relaxed text-ink-soft mb-2.5 font-medium">
             This neighbourhood is <strong>{densityPhrase(p.intensity)}</strong>{" "}
             with {coverPhrase(p.green, "green")} and{" "}
             {coverPhrase(p.water, "water")}. That makes it{" "}
-            <strong>
+            <strong className="text-brand font-extrabold">
               {p.d_ta_c >= 0
-                ? `${p.d_ta_c.toFixed(1)} degrees hotter`
-                : `${Math.abs(p.d_ta_c).toFixed(1)} degrees cooler`}
+                ? `+${p.d_ta_c.toFixed(1)} °C hotter`
+                : `${p.d_ta_c.toFixed(1)} °C cooler`}
             </strong>{" "}
-            than the city average — the{" "}
+            than the city average due to the{" "}
             <Info term="Urban heat island" label="urban heat island" /> effect.
           </p>
-          <div className="mt-1">
-            <Row
-              label="Hotter or cooler than average"
-              value={`${p.d_ta_c >= 0 ? "+" : ""}${p.d_ta_c.toFixed(2)} °C`}
-              hint="Departure from the city mean, from this cell's urban form"
-            />
-            <Row label="How built-up" value={densityPhrase(p.intensity)} />
-            <Row label="Road coverage" value={`${Math.round(p.roads * 100)}%`} />
-            <Row label="Parks and greenery" value={`${Math.round(p.green * 100)}%`} />
-            <Row label="Water" value={`${Math.round(p.water * 100)}%`} />
-            <Row
-              label="Hottest time here"
-              value={data.hourly.meta.labels_ist?.[p.peak_hour] ?? `${p.peak_hour}:00`}
-            />
+
+          {/* Visual Bar Contribution Indicators */}
+          <div className="space-y-2 mb-3 bg-sunken/40 p-3 rounded-xl border border-line/60">
+            <ContributionBar label="Thermal Stress Intensity" pct={Math.min(100, Math.round((utci / 50) * 100))} color="var(--color-flag)" />
+            <ContributionBar label="Built-up Surface Density" pct={Math.min(100, Math.round(p.intensity * 100))} color="var(--color-accent)" />
+            <ContributionBar label="Road Asphalt Coverage" pct={Math.min(100, Math.round(p.roads * 100))} color="var(--color-gold)" />
+            <ContributionBar label="Greenery Cooling Deficit" pct={Math.min(100, Math.round((1 - p.green) * 100))} color="var(--color-brand)" />
           </div>
-          <Note>
-            We measured <em>which</em> areas are hotter from real map data. How
-            much hotter comes from a published average
-            ({data.hourly.meta.uhi_amplitude_c} °C across the city), not from
-            measurements taken here.
-          </Note>
+
+          <div className="bg-surface rounded-xl border border-line p-2 space-y-0.5">
+            <Row
+              label="Temperature departure from city mean"
+              value={`${p.d_ta_c >= 0 ? "+" : ""}${p.d_ta_c.toFixed(2)} °C`}
+              hint="Departure from city mean due to urban form"
+            />
+            <Row label="Built-up density" value={densityPhrase(p.intensity)} />
+            <Row label="Road coverage" value={`${Math.round(p.roads * 100)}%`} />
+            <Row label="Parks & Greenery" value={`${Math.round(p.green * 100)}%`} />
+            <Row label="Water bodies" value={`${Math.round(p.water * 100)}%`} />
+          </div>
         </div>
 
-        {/* What it means for a body */}
+        {/* 03 — WHO */}
         <div>
-          <SectionLabel>What this meant for people here</SectionLabel>
-          <div className="mt-1.5 space-y-1.5">
+          <StepHeader number="03" title="WHO IS EXPOSED & VULNERABLE?" subtitle="Population strain by activity & persona" />
+          <div className="space-y-2">
             {data.personas.order.map((key) => {
               const persona = data.personas.personas[key];
               const minutes = safeMinutes(persona.safe_minutes_by_hour[hour]);
@@ -163,47 +182,94 @@ export function CellDetail({
               return (
                 <div
                   key={key}
-                  className="border border-line rounded-[3px] px-2 py-1.5"
+                  className="bg-surface border border-line/90 rounded-xl p-3 transition-all hover:border-line-strong shadow-2xs"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-[12px] text-ink leading-tight">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-extrabold text-ink leading-tight">
                       {persona.label}
                     </span>
                     <Badge tone={SEVERITY_TONE[severity]}>{severity}</Badge>
                   </div>
-                  <p className="text-[11px] leading-snug text-ink-soft mt-1">
-                    At this hour they were{" "}
+                  <p className="text-[12px] leading-snug text-ink-soft mt-1">
+                    At this hour:{" "}
                     <strong className="text-ink">{strainPhrase(ratio)}</strong>{" "}
-                    and{" "}
-                    <strong className="text-ink">{minutesPhrase(minutes)}</strong>.
+                    · <strong className="text-ink">{minutesPhrase(minutes)}</strong>.
                   </p>
                   {persona.vulnerability_offset_c > 0 && (
                     <Note>
-                      We lowered their safe limit by{" "}
-                      {persona.vulnerability_offset_c.toFixed(1)} °C because they
-                      cope with heat less well. That adjustment is our judgement,
-                      not a published standard.
+                      Safe limit lowered by {persona.vulnerability_offset_c.toFixed(1)} °C due to vulnerability factors.
                     </Note>
                   )}
                 </div>
               );
             })}
           </div>
-          <Note>
-            Based on <Info term="ISO 7243" /> safe-heat limits and{" "}
-            <Info term="ACGIH" /> work–rest tables — the same standards
-            occupational-health inspectors use.
-          </Note>
+        </div>
+
+        {/* 04 — WHEN */}
+        <div>
+          <StepHeader number="04" title="WHEN WILL RISK PEAK?" subtitle="Diurnal peak window for this ward" />
+          <div className="bg-amber-500/10 border border-amber-300/80 p-3 rounded-xl flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-wider text-brand">
+                Peak Ward Heat Hour
+              </div>
+              <div className="text-[16px] font-black text-ink mt-0.5 tnum">
+                {data.hourly.meta.labels_ist?.[p.peak_hour] ?? `${p.peak_hour}:00`} IST
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-lg bg-brand text-white text-[11px] font-extrabold uppercase">
+              Target Cooling Window
+            </span>
+          </div>
+        </div>
+
+        {/* 05 — WHAT NEXT */}
+        <div>
+          <StepHeader number="05" title="WHAT SHOULD AUTHORITIES DO?" subtitle="Recommended ward intervention" />
+          <div className="bg-teal-soft/80 border border-teal/30 p-3 rounded-xl space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[16px]">🛡️</span>
+              <span className="text-[13px] font-extrabold text-teal-dark uppercase">
+                Priority Ward Action
+              </span>
+            </div>
+            <p className="text-[12px] font-semibold text-ink leading-snug">
+              Deploy mobile hydration stations & enforce mandatory outdoor work rest intervals between 12:00 and 16:30 IST.
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function StepHeader({ number, title, subtitle }: { number: string; title: string; subtitle: string }) {
   return (
-    <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-soft">
-      {children}
+    <div className="mb-2">
+      <div className="flex items-center gap-2">
+        <span className="px-1.5 py-0.5 rounded bg-accent text-white text-[10px] font-black">
+          {number}
+        </span>
+        <h4 className="text-[12px] font-black uppercase tracking-wider text-ink">
+          {title}
+        </h4>
+      </div>
+      <p className="text-[11px] text-ink-faint font-medium pl-6">{subtitle}</p>
+    </div>
+  );
+}
+
+function ContributionBar({ label, pct, color }: { label: string; pct: number; color: string }) {
+  return (
+    <div>
+      <div className="flex justify-between text-[11px] font-semibold mb-0.5">
+        <span className="text-ink-soft">{label}</span>
+        <span className="tnum font-bold text-ink">{pct}%</span>
+      </div>
+      <div className="h-2 bg-sunken rounded-full overflow-hidden border border-line/40">
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
+      </div>
     </div>
   );
 }
@@ -212,8 +278,6 @@ function safeMinutes(value: number | undefined): number {
   return Number.isFinite(value) ? (value as number) : 0;
 }
 
-/** Mirrors physiology.assess() severity thresholds so the UI and the Python
- *  core cannot disagree about what counts as unsafe. */
 function severityFor(ratio: number): keyof typeof SEVERITY_TONE {
   if (ratio >= 1.15) return "critical";
   if (ratio >= 1.0) return "severe";
@@ -221,3 +285,4 @@ function severityFor(ratio: number): keyof typeof SEVERITY_TONE {
   if (ratio >= 0.75) return "moderate";
   return "low";
 }
+

@@ -1,65 +1,80 @@
 @import "tailwindcss";
 
 /* ============================================================================
-   Design tokens.
-
-   Product-grade console: soft rounded cards on a light ground, generous
-   whitespace, a warm heat-led brand accent. Reads as a tool someone would
-   actually be issued, rather than a government portal or a research notebook.
-
-   Light-mode first: control rooms, projectors and paper are all bright.
+   HEATSHIELD Emergency Heat-Health Intelligence Design System
    ========================================================================= */
 @theme {
-  --color-ground: #f5f6f8;
-  --color-surface: #ffffff;
-  --color-sunken: #f0f1f4;
-  --color-line: #e4e6eb;
-  --color-line-strong: #c9ccd4;
+  --color-ground: #F6F4EF;
+  --color-surface: #FFFFFF;
+  --color-sunken: #EFECE6;
+  --color-line: #E2DDD5;
+  --color-line-strong: #D1C9BC;
 
-  --color-ink: #16181d;
-  --color-ink-soft: #4a4f5a;
-  /* 4.5:1 minimum against our grounds — measured, not eyeballed. */
-  --color-ink-faint: #6b7180;
+  /* Structural Warm Charcoal Frame */
+  --color-charcoal: #181816;
+  --color-charcoal-surface: #242320;
+  --color-charcoal-hover: #2E2C28;
+  --color-charcoal-border: #2B2A26;
 
-  /* Brand / primary action. */
-  --color-accent: #1d4ed8;
-  --color-accent-soft: #eef2ff;
-  --color-brand: #ea6a1e;
-  --color-brand-soft: #fff2e8;
+  /* Structural Dark Slate / Navy Frame */
+  --color-navy: #0F172A;
+  --color-navy-surface: #1E293B;
+  --color-navy-hover: #334155;
+  --color-navy-border: #334155;
 
-  /* Status vocabulary, shared with CAP severity and the provenance flags. */
-  --color-exercise: #8a6414;
-  --color-exercise-bg: #fdf6e3;
-  --color-flag: #b3261e;
-  --color-flag-bg: #fdecea;
-  --color-ok: #256b41;
-  --color-ok-bg: #e7f4ec;
-  --color-info: #1d4ed8;
-  --color-info-bg: #eef2ff;
+  --color-ink: #0F172A;
+  --color-ink-soft: #475569;
+  --color-ink-faint: #64748B;
 
-  /* ---------------------------------------------------------------------
-     Sequential data ramp — magma family, light (low) to dark (high).
-     Perceptually uniform and colourblind-safe, unlike the red/orange/yellow
-     ladder. Reads as heat while staying honest about ordering.
-     ------------------------------------------------------------------ */
-  --color-ramp-0: #fff6e6;
-  --color-ramp-1: #fddfb0;
-  --color-ramp-2: #fbb97e;
-  --color-ramp-3: #f78f65;
-  --color-ramp-4: #e35d63;
-  --color-ramp-5: #c03d73;
-  --color-ramp-6: #8c2a7c;
-  --color-ramp-7: #4d1471;
+  /* Primary Brand Accent (Burnt Emergency Orange) */
+  --color-accent: #E0561B;
+  --color-accent-dark: #C2410C;
+  --color-accent-soft: #FFF7ED;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas,
-    "Liberation Mono", monospace;
+  /* Secondary Accent (Warm Gold / Warning) */
+  --color-gold: #D97706;
+  --color-gold-soft: #FEF3C7;
+
+  /* Environmental Analytics & System Information (Teal/Aqua) */
+  --color-teal: #0D9488;
+  --color-teal-dark: #0F766E;
+  --color-teal-soft: #CCFBF1;
+
+  /* Secondary Cool Accent (Muted Blue) */
+  --color-blue: #2563EB;
+  --color-blue-soft: #EFF6FF;
+
+  /* Elevated Heat & Warning States */
+  --color-brand: #C2410C;
+  --color-brand-soft: #FFEDD5;
+
+  /* Severe / Extreme Danger (Deep Crimson) */
+  --color-flag: #DC2626;
+  --color-flag-bg: #FEF2F2;
+  --color-ok: #16A34A;
+  --color-ok-bg: #F0FDF4;
+
+  /* Exercise simulation indicator */
+  --color-exercise: #9A3412;
+  --color-exercise-bg: #FEF3C7;
+
+  /* Sequential Map Data Ramp (Magma family) */
+  --color-ramp-0: #FFF6E6;
+  --color-ramp-1: #FDDFB0;
+  --color-ramp-2: #FBB97E;
+  --color-ramp-3: #F78F65;
+  --color-ramp-4: #E35D63;
+  --color-ramp-5: #C03D73;
+  --color-ramp-6: #8C2A7C;
+  --color-ramp-7: #4D1471;
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
 }
 
-/* min-height, NOT height: `height: 100%` clamps the document to the viewport
-   while content overflows past it, which silently breaks scrolling. */
-html, body, #root { min-height: 100%; }
+html, body, #root {
+  min-height: 100%;
+}
 
 body {
   margin: 0;
@@ -71,38 +86,87 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Numbers in tables and readouts must align; tabular figures are not optional
-   in an instrument. */
-.tnum { font-variant-numeric: tabular-nums; }
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
 
+/* Premium Card Styles */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
-/* Focus visibility is an accessibility requirement, not a style choice. */
+.card:hover {
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 221, 213, 0.8);
+}
+
+/* Accessibility Focus Ring */
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb {
-  background: #d3d6dd;
   border-radius: 6px;
-  border: 2px solid var(--color-ground);
 }
 
-/* ============================================================================
-   Print — officials print things, and a printable summary is a V1 deliverable.
-   ========================================================================= */
-@media print {
-  @page { margin: 12mm; }
-  body { background: #fff; font-size: 11px; }
-  .no-print { display: none !important; }
-  .print-break { break-before: page; }
-  .card { border: 1px solid #999 !important; box-shadow: none !important; }
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
+::-webkit-scrollbar-track {
+  background: var(--color-ground);
+}
+::-webkit-scrollbar-thumb {
+  background: #D1C9BC;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A39E93;
+}
+
+/* Subtle Pulse Glow Animation */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(224, 86, 27, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(224, 86, 27, 0);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2.5s infinite;
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body {
+    background: #fff;
+    font-size: 11px;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-break {
+    break-before: page;
+  }
+  .card {
+    border: 1px solid #A39E93 !important;
+    box-shadow: none !important;
+  }
+}
+
+
+
+
